@@ -286,6 +286,195 @@ spec:
           averageUtilization: 70
 ```
 
+Here’s a **compact, engineer-friendly cheat sheet** for **Axon Framework + Kafka**, focused on how events, commands, and messages flow through the system — plus the most important configs like `group.id`, partitions, and replay behaviors.
+
+---
+
+## ⚙️ Axon + Kafka Overview
+
+**Axon Framework** is a CQRS (Command Query Responsibility Segregation) + Event Sourcing framework.
+**Kafka** is often used as the *Event Bus / Event Store* for Axon distributed setups.
+
+Axon can use **Kafka as a distributed event message broker**, so event processors across microservices can subscribe to the same event stream and handle events in a scalable, decoupled way.
+
+---
+
+## 🧩 Core Concepts Mapping
+
+| Concept             | Axon                            | Kafka Equivalent               | Purpose                                       |
+| ------------------- | ------------------------------- | ------------------------------ | --------------------------------------------- |
+| **Command Bus**     | Direct point-to-point           | Not Kafka                      | Executes intent (creates/updates aggregate)   |
+| **Event Bus**       | Publish-subscribe               | Kafka topic                    | Distributes events to all interested handlers |
+| **Query Bus**       | Point-to-point / scatter-gather | Not Kafka                      | Fetches read model data                       |
+| **Event Processor** | Handles events                  | Kafka consumer group           | Subscribes to Kafka topics                    |
+| **Aggregate**       | Domain object root              | —                              | Source of truth that applies events           |
+| **Event Store**     | Axon Server / Kafka             | Kafka topic per aggregate type | Persists and replays events                   |
+
+---
+
+## ⚡ Kafka Configuration Cheat Sheet
+
+### 1. **Basic Properties**
+
+```yaml
+axon:
+  kafka:
+    producer:
+      bootstrap-servers: localhost:9092
+      client-id: axon-producer
+    consumer:
+      bootstrap-servers: localhost:9092
+      group-id: billing-service   # Key for parallelism & scaling
+      auto-offset-reset: earliest
+      enable-auto-commit: false
+    properties:
+      max.poll.records: 100
+```
+
+### 2. **`group.id` Explained**
+
+* Identifies a **consumer group** (like a logical Axon event processor).
+* Kafka guarantees:
+
+  * **One message per group partition at a time**.
+  * If two Axon nodes share the same `group.id`, they load balance event handling.
+  * If you want *multiple services* to process the same event (e.g., Notifications + Payments), give them **different group IDs**.
+
+Example:
+
+| Service                | Group ID                 | Effect                          |
+| ---------------------- | ------------------------ | ------------------------------- |
+| `payment-service`      | `payment-processor`      | Independent consumer            |
+| `notification-service` | `notification-processor` | Also receives same event stream |
+
+---
+
+## 🧠 Key Topics & Event Flow
+
+| Topic Name         | Description                                                                                          |
+| ------------------ | ---------------------------------------------------------------------------------------------------- |
+| `axon.events`      | Default topic for domain events                                                                      |
+| `axon.commands`    | Optional if using Kafka as a distributed command bus                                                 |
+| `axon.dead-letter` | For failed event processing                                                                          |
+| Custom topics      | You can map aggregates or bounded contexts to dedicated topics (`customer.events`, `billing.events`) |
+
+---
+
+## 🔁 Event Processors
+
+Axon defines two main types:
+
+| Type                     | Processing                 | Use Case                          |
+| ------------------------ | -------------------------- | --------------------------------- |
+| **SubscribingProcessor** | Real-time (like in-memory) | Single-node or local event replay |
+| **TrackingProcessor**    | Pulls from Kafka offset    | Distributed & replayable          |
+
+When using Kafka, Axon automatically configures **`TrackingEventProcessor`**, backed by Kafka offsets.
+
+**Offsets** are stored per `group.id` → partition mapping.
+
+---
+
+## 🪄 Common Configs and Gotchas
+
+| Config                       | Meaning                                 | Tip                            |
+| ---------------------------- | --------------------------------------- | ------------------------------ |
+| `auto.offset.reset=earliest` | Start from beginning if no offset found | Use this for replay or testing |
+| `enable.auto.commit=false`   | Let Axon control commit                 | Prevents message loss          |
+| `max.poll.interval.ms`       | Max time between polls                  | Tune if handlers are slow      |
+| `max.poll.records`           | Number of records per batch             | Control processing throughput  |
+| `acks=all`                   | Producer waits for all replicas         | Ensures durability             |
+
+---
+
+## 🧰 Code Patterns
+
+### 1. Event Producer (Publishing to Kafka)
+
+```java
+@EventHandler
+public void on(OrderCreatedEvent event) {
+    kafkaTemplate.send("axon.events", event.getOrderId(), event);
+}
+```
+
+### 2. Kafka Event Consumer in Axon
+
+```java
+@ProcessingGroup("order-events")
+public class OrderEventHandler {
+
+    @EventHandler
+    public void on(OrderCreatedEvent event) {
+        // update read model, trigger saga, etc.
+    }
+}
+```
+
+> Each `@ProcessingGroup` maps to a Kafka `group.id`.
+> Multiple instances of the same service share load if they use the same group.
+
+---
+
+## 🧮 Parallelism and Scaling
+
+| Concept            | Kafka Behavior                                                   |
+| ------------------ | ---------------------------------------------------------------- |
+| **Partitions**     | Parallelism unit; one partition = one thread per consumer group  |
+| **Replicas**       | Fault tolerance                                                  |
+| **group.id**       | Controls load distribution and consumer uniqueness               |
+| **Keyed messages** | Events for same aggregate go to same partition (preserves order) |
+
+**Best practice:** use the aggregate ID as Kafka key → ensures ordered event stream per entity.
+
+---
+
+## 🧱 Axon Kafka Integration Setup
+
+Add dependency:
+
+```xml
+<dependency>
+  <groupId>org.axonframework.extensions.kafka</groupId>
+  <artifactId>axon-kafka-spring-boot-starter</artifactId>
+  <version>4.9.3</version>
+</dependency>
+```
+
+Then configure your event processors:
+
+```yaml
+axon:
+  eventhandling:
+    processors:
+      billing-processor:
+        mode: tracking
+```
+
+Axon automatically binds these processors to Kafka topics using the extension’s configuration.
+
+---
+
+## 🧨 Error Handling
+
+* Axon retries transient errors automatically.
+* Permanent failures → Dead Letter Queue topic (e.g., `axon.dead-letter`).
+* You can implement custom DLQ handlers or retry policies.
+
+---
+
+## 🧭 Typical Architecture
+
+```
+[Command -> Aggregate -> Event]
+          ↓
+     Kafka Topic ("axon.events")
+          ↓
+   [Event Processors / Sagas]
+          ↓
+     Read Models / External Systems
+```
+
 ---
 
 ## 🧱 **JPA / ORM (Object-Relational Mapping)**
@@ -403,6 +592,108 @@ WHERE o.amount > 100;
 
 ---
 
+## 🔐 Encryption — Reversible Protection
+
+**Purpose:**
+Keep data *confidential* while allowing authorized users to recover it.
+
+**How it works:**
+
+* Uses a **key** to transform plaintext into unreadable ciphertext.
+* With the right key, you can **decrypt** it back to the original message.
+
+**Example:**
+
+```text
+Input: "Secret123"
+Key: "A1B2C3"
+Output: "F81@^q0Z"  ← Encrypted
+```
+
+Decrypt with the same key → get back "Secret123".
+
+**Types:**
+
+1. **Symmetric encryption:** Same key for encryption and decryption.
+
+   * Algorithms: AES, DES, ChaCha20
+   * Example: Used for file encryption or database fields.
+2. **Asymmetric encryption:** Public key encrypts, private key decrypts.
+
+   * Algorithms: RSA, ECC
+   * Example: HTTPS (TLS), email encryption, digital signatures.
+
+**Use cases:**
+
+* Protecting data at rest (databases, files)
+* Secure data in transit (SSL/TLS)
+* Reversible protection when data must be retrieved later
+
+---
+
+## 🧮 Hashing — Irreversible Integrity Check
+
+**Purpose:**
+Ensure *integrity* and *verification* of data, not secrecy.
+
+**How it works:**
+
+* Takes input of any length → outputs fixed-size digest (hash).
+* Cannot be reversed to get original input.
+* Any small change in input gives completely different hash.
+
+**Example:**
+
+```text
+Input: "Secret123"
+Hash (SHA-256): 4ffba5659d30...
+```
+
+**Properties:**
+
+* **Deterministic:** Same input always → same hash.
+* **Irreversible:** You can’t get input back from hash.
+* **Avalanche effect:** Tiny input change → drastically different output.
+* **Collision-resistant:** Two different inputs shouldn’t produce same hash.
+
+**Use cases:**
+
+* Password storage (`bcrypt`, `scrypt`, `Argon2`)
+* File integrity verification (e.g., checksums)
+* Blockchain (each block’s hash links to previous one)
+* Digital signatures (hashed before signing)
+
+---
+
+## ⚖️ Quick Comparison
+
+| Feature            | Encryption                            | Hashing                     |
+| ------------------ | ------------------------------------- | --------------------------- |
+| Reversible         | ✅ Yes                                 | ❌ No                        |
+| Uses a Key         | ✅ Yes                                 | ❌ No                        |
+| Primary Goal       | Confidentiality                       | Integrity / Authentication  |
+| Example Algorithms | AES, RSA                              | SHA-256, bcrypt             |
+| Output Size        | Variable                              | Fixed                       |
+| Typical Use        | Storing data securely but retrievable | Verifying data or passwords |
+
+---
+
+## 🧠 Practical Security Rules
+
+* **Never encrypt passwords.**
+  Store password *hashes* using a **slow hashing algorithm** (`bcrypt`, `Argon2`) + salt.
+
+* **Encrypt sensitive data you must read back**, like:
+  credit card numbers, personal info, or API keys.
+
+* **Use both together:**
+
+  * Encrypt communication channels (TLS).
+  * Hash passwords and tokens before storage.
+  * Optionally hash ciphertext for tamper detection.
+
+---
+
 ## 🧠 **Security Use Cases (Interview Ready)**
 
 | Scenario                | Solution                                             |
@@ -414,3 +705,50 @@ WHERE o.amount > 100;
 | Outdated dependency     | Automate SCA → ticket + patch                        |
 | File upload risk        | Validate MIME + antivirus (ClamAV)                   |
 | GC CPU spike            | Enable GC logs; analyze via GCeasy                   |
+
+---
+
+## Potential Code Problem
+```java
+  public int[] process(int[] balances, String[] transactions) {
+      int[] updated = balances.clone();
+
+      for (String txn : transactions) {
+          String[] parts = txn.split(" ");
+          String type = parts[0].toLowerCase();
+
+          switch (type) {
+              case "deposit": {
+                  int account = Integer.parseInt(parts[1]) - 1;
+                  int amount = Integer.parseInt(parts[2]);
+                  updated[account] += amount;
+                  break;
+              }
+              case "withdraw": {
+                  int account = Integer.parseInt(parts[1]) - 1;
+                  int amount = Integer.parseInt(parts[2]);
+                  if (updated[account] < amount) {
+                      return new int[]{account + 1, -1};
+                  }
+                  updated[account] -= amount;
+                  break;
+              }
+              case "transfer": {
+                  int from = Integer.parseInt(parts[1]) - 1;
+                  int to = Integer.parseInt(parts[2]) - 1;
+                  int amount = Integer.parseInt(parts[3]);
+                  if (updated[from] < amount) {
+                      return new int[]{from + 1, -1};
+                  }
+                  updated[from] -= amount;
+                  updated[to] += amount;
+                  break;
+              }
+              default:
+                  System.out.println("Invalid transaction type: " + type);
+          }
+      }
+
+      return updated;
+  }
+```
