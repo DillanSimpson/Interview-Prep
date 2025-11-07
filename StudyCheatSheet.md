@@ -1,30 +1,33 @@
 # **Interview Cheat Sheet**
 
-## 🧠 **Core Java**
+## 1) 🧠 Core Java
 
 ### Concurrency & Memory
 
-- **Thread lifecycle:** `new → runnable → running → waiting/blocking → terminated`.
-- **ExecutorService:** Use `Callable`/`Future` for managed concurrency.
-- **Locks vs synchronized:** Prefer `ReentrantLock` for fairness and interruptible waits.
-- **Volatile:** Ensures visibility but not atomicity.
-- **Atomic classes:** (`AtomicInteger`, `AtomicReference`) for lock-free counters.
-- **CompletableFuture:** Build async pipelines with `thenCompose`/`exceptionally`.
-- **ForkJoinPool:** Efficient for recursive parallel tasks.
-- **Semaphore** for throttling.
-- **GC Tuning:** Use `-Xlog:gc*` to analyze allocation and pause patterns.
+* **Thread lifecycle:** `new → runnable → running → waiting/blocking → terminated`.
+* **ExecutorService:** Use `Callable`/`Future` for managed concurrency.
+* **Locks vs synchronized:** Use `synchronized` for most cases (simplicity); prefer `ReentrantLock` only for advanced needs like fairness or interruptible waits.
+* **Volatile:** Ensures visibility but not atomicity.
+* **Atomic classes:** (`AtomicInteger`, `AtomicReference`) for lock-free counters.
+* **CompletableFuture:** Build async pipelines with `thenCompose`/`exceptionally`.
+* **ForkJoinPool:** Efficient for recursive parallel tasks.
+* **Semaphore:** Controls concurrent access (permits); useful for throttling or limiting resource usage.
 
 ```java
 CompletableFuture.supplyAsync(() -> fetchData())
-   .thenCombine(fetchUser(), (data, user) -> merge(data, user))
-   .exceptionally(ex -> fallback());
+    .thenCombine(
+        CompletableFuture.supplyAsync(() -> fetchUser()),
+        (data, user) -> merge(data, user)
+    )
+    .exceptionally(ex -> fallback(ex));
+// Example: fetchData and fetchUser are methods fetching data asynchronously; merge combines their results.
 ```
 
 ### Functional & Stream APIs
 
-- `Function`, `Predicate`, `Supplier`, `Consumer` — core functional interfaces.
-- Use `map`, `filter`, `flatMap`, `reduce`. Prefer parallel streams only when stateless and data-heavy.
-- Combine with `Collectors.groupingBy`, `partitioningBy`.
+* `Function`, `Predicate`, `Supplier`, `Consumer` — core functional interfaces.
+* Use `map`, `filter`, `flatMap`, `reduce`. Prefer parallel streams only when stateless and data-heavy.
+* Combine with `Collectors.groupingBy`, `partitioningBy`.
 
 ```java
 list.stream()
@@ -34,20 +37,20 @@ list.stream()
 
 ### Reflection & Classloading
 
-- Use `Class.forName()`, `getDeclaredFields()`, `Method.invoke()` for dynamic inspection.
-- Keep reflection minimal — it breaks type safety and impacts performance.
-- Custom ClassLoaders can isolate plugin modules or tenants.
+* Use `Class.forName()`, `getDeclaredFields()`, `Method.invoke()` for dynamic inspection.
+* Keep reflection minimal — it breaks type safety and impacts performance.
+* Custom ClassLoaders can isolate plugin modules or tenants.
 
 ### Exception & Immutability
 
-- Use **custom exceptions** for API-level granularity.
-- Favor **immutable objects** (`final` fields, no setters) to avoid race conditions.
+* Use **custom exceptions** for API-level granularity.
+* Favor **immutable objects** (`final` fields, no setters) to avoid race conditions.
 
 ---
 
-## 🏗️ **Data Structures & Use Cases**
+## 2) 🏗️ Data Structures & Use Cases
 
-### 🧩 Core Collections
+### Core Collections
 
 | Data Structure | Avg. Time Complexity              | Typical Use / Notes             |
 | -------------- | --------------------------------- | ------------------------------- |
@@ -55,9 +58,7 @@ list.stream()
 | **ArrayList**  | Access: O(1), Insert/Delete: O(n) | Dynamic resize, good for reads. |
 | **LinkedList** | Access: O(n), Insert/Delete: O(1) | Fast at ends, high overhead.    |
 
----
-
-### 🔑 Maps
+### Maps
 
 | Data Structure        | Avg. Time Complexity      | Typical Use / Notes                     |
 | --------------------- | ------------------------- | --------------------------------------- |
@@ -68,9 +69,7 @@ list.stream()
 | **WeakHashMap**       | Access: O(1)              | Auto-clears when keys are GC’d.         |
 | **EnumMap**           | Access: O(1)              | Optimized for enum keys.                |
 
----
-
-### 🔁 Sets
+### Sets
 
 | Data Structure | Avg. Time Complexity | Typical Use / Notes         |
 | -------------- | -------------------- | --------------------------- |
@@ -78,9 +77,7 @@ list.stream()
 | **TreeSet**    | Access: O(log n)     | Sorted unique elements.     |
 | **BitSet**     | Access: O(1)         | Space-efficient flags.      |
 
----
-
-### 🧵 Queues & Stacks
+### Queues & Stacks
 
 | Data Structure           | Avg. Time Complexity    | Typical Use / Notes         |
 | ------------------------ | ----------------------- | --------------------------- |
@@ -90,103 +87,74 @@ list.stream()
 | **PriorityQueue**        | Insert/Delete: O(log n) | Min/max retrieval.          |
 | **CopyOnWriteArrayList** | Read: O(1), Write: O(n) | Safe concurrent reads.      |
 
-
 ---
 
-# ⚙️ **Design Patterns (Security & System Context)**
+## 3) 🍃 Spring Boot Mastery
 
-- **Singleton:** Central `SecurityConfig`, connection pool.
-- **Factory:** Crypto algorithms, JWT parser.
-- **Strategy:** Switch authentication/hash strategies (BCrypt ↔ Argon2).
-- **Decorator:** Add logging, metrics, or auditing layers.
-- **Observer:** Event notification to SIEM/monitoring.
-- **Proxy:** API gateway enforcing auth & throttling.
-- **Chain of Responsibility:** Servlet filters → validation → authorization.
+### Architecture & Validation
 
----
+* **Controller:** REST entry point (`@RestController`, `@RequestMapping`).
+* **Service:** Business logic.
+* **Repository:** Data layer.
+* **DTO:** Transfer objects, decoupled from persistence.
+* **Validation:** `@Valid`, `@NotNull`, `@Pattern` via `spring-boot-starter-validation`.
 
-## 🌐 **Spring Boot Mastery**
+### Annotation Reference
 
-### Architecture Layers
+| Annotation | Purpose / Use Case | Notes |
+|:-----------|:-------------------|:------|
+| **@RestController** | Combines `@Controller` + `@ResponseBody` to expose REST APIs. | Auto-serializes to JSON/XML. |
+| **@Controller** | Handles web requests, returns views (MVC). | Use with `ModelAndView`. |
+| **@Service** | Marks business logic beans. | Singleton by default. |
+| **@Repository** | DAO layer, translates SQL exceptions. | Used for JPA/JDBC. |
+| **@Configuration** | Declares bean definitions. | Type-safe alt to XML. |
+| **@Bean** | Defines a Spring-managed bean. | Lifecycle-aware, injectable. |
+| **@Value("${property}")** | Injects config/env values. | Supports SpEL (`#{}`) syntax. |
+| **@Transactional** | Defines DB transaction boundaries. | Supports rollback/isolation. |
+| **@Profile("prod")** | Loads beans under specific env profile. | Common: `dev`, `test`, `prod`. |
+| **@DependsOn("bean")** | Enforces bean init order. | Handles implicit dependencies. |
+| **@ConditionalOnProperty** | Loads bean if config flag matches. | Feature toggles. |
+| **@ConditionalOnMissingBean** | Loads bean only if not defined. | Avoids duplicates. |
+| **@Lazy** | Delays bean creation. | Improves startup time. |
+| **@Scope("prototype")** | Creates new instance per injection. | Default scope: singleton. |
+| **@Cacheable**, **@CacheEvict** | Cache method results / clear entries. | Pair with `@CachePut`. |
+| **@Retryable**, **@Recover** | Auto retries + fallback. | Needs `@EnableRetry`. |
+| **@RateLimiter**, **@CircuitBreaker**, **@Bulkhead** | Limits/trips/isolates calls. | From *Resilience4j*. |
+| **@Async** | Runs async methods. | Needs `@EnableAsync`. |
+| **@Scheduled(cron="...")** | Periodic background tasks. | Needs `@EnableScheduling`. |
+| **@RestControllerAdvice**<br>**@ControllerAdvice**<br>**@ExceptionHandler** | Global or targeted exception handling. | JSON responses for REST APIs. |
+| **@ResponseStatus** | Maps exceptions to HTTP codes. | Use for validation errors. |
+| **@EnableConfigurationProperties**<br>**@ConfigurationProperties** | Binds YAML props to POJOs. | Example: `prefix="app"`. |
+| **@RestClientTest**, **@DataJpaTest**,<br>**@WebMvcTest**, **@SpringBootTest**, **@MockBean**, **@TestConfiguration**, **@ExtendWith**, **@DisplayName** | Test scaffolding annotations. | Scope context for speed. |
+| **@EnableAutoConfiguration**, **@EnableAspectJAutoProxy**, **@Aspect** | Bootstrapping / AOP setup. | For cross-cutting concerns. |
 
-- **Controller:** REST entry point (`@RestController`, `@RequestMapping`).
-- **Service:** Business logic.
-- **Repository:** Data layer.
-- **DTO:** Transfer objects, decoupled from persistence.
-- **Validation:** `@Valid`, `@NotNull`, `@Pattern` via `spring-boot-starter-validation`.
-
-### **Spring Boot Annotation Reference**
-
-| Annotation                                  | Purpose / Use Case                                                     | Notes                                              |
-| ------------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------- |
-| **@RestController**                         | Combines `@Controller` + `@ResponseBody` to expose REST APIs.          | Auto-serializes return objects to JSON/XML.        |
-| **@Controller**                             | Handles web requests, typically returning views (MVC).                 | Use with `ModelAndView`.                           |
-| **@Service**                                | Marks business logic layer beans.                                      | Spring-managed singleton.                          |
-| **@Repository**                             | Persistence/DAO layer; translates SQL exceptions.                      | Used for JPA, JDBC, etc.                           |
-| **@Configuration**                          | Declares bean definitions.                                             | Equivalent to XML config, type-safe.               |
-| **@Bean**                                   | Defines a Spring-managed bean inside config classes.                   | Lifecycle-aware, injectable.                       |
-| **@Value("${property}")**                   | Injects values from config files or env vars.                          | Supports SpEL (`#{}`) for expressions.             |
-| **@Transactional**                          | Defines DB transaction boundaries.                                     | Supports rollback, isolation, propagation.         |
-| **@Profile("prod")**                        | Loads beans only under a given environment profile.                    | Common for `dev`, `test`, `prod`.                  |
-| **@DependsOn("beanName")**                  | Enforces bean initialization order.                                    | Useful for implicit dependencies.                  |
-| **@ConditionalOnProperty**                  | Loads bean if config flag matches.                                     | Feature toggles, modular features.                 |
-| **@ConditionalOnMissingBean**               | Loads bean only if not already defined.                                | Prevents duplicate beans.                          |
-| **@Lazy**                                   | Delays bean creation until first needed.                               | Reduces startup time.                              |
-| **@Scope("prototype")**                     | Creates new instance per injection.                                    | Default is singleton.                              |
-| **@Cacheable("cacheName")**                 | Caches method results by key.                                          | Combine with `@CacheEvict`, `@CachePut`.           |
-| **@CacheEvict**                             | Clears cached entries.                                                 | Often after update/delete ops.                     |
-| **@Retryable**                              | Retries failed method calls automatically.                             | Requires `@EnableRetry`.                           |
-| **@Recover**                                | Fallback for `@Retryable` failures.                                    | Must match retry method signature.                 |
-| **@RateLimiter** *(Resilience4j)*           | Limits API execution rate per time window.                             | `@RateLimiter(name="apiLimiter")`.                 |
-| **@CircuitBreaker** *(Resilience4j)*        | Stops calling failing services temporarily.                            | Requires `@EnableCircuitBreaker`.                  |
-| **@Bulkhead** *(Resilience4j)*              | Isolates service calls via limited threads/semaphores.                 | Prevents cascading failures.                       |
-| **@Async**                                  | Executes methods asynchronously in background.                         | Needs `@EnableAsync`.                              |
-| **@Scheduled(cron="...")**                  | Runs periodic background tasks.                                        | Needs `@EnableScheduling`.                         |
-| **@RestControllerAdvice**                   | Global JSON-based exception handler for REST APIs.                     | Combines `@ControllerAdvice` + `@ResponseBody`.    |
-| **@ControllerAdvice**                       | Global handler for exceptions or cross-cutting logic.                  | Works with `@ExceptionHandler`.                    |
-| **@ExceptionHandler(Exception.class)**      | Handles specific exceptions locally or globally.                       | Returns custom response.                           |
-| **@ResponseStatus(HttpStatus.BAD_REQUEST)** | Defines HTTP status for custom exceptions.                             | Common for API validation errors.                  |
-| **@EnableConfigurationProperties**          | Binds YAML configs to POJOs annotated with `@ConfigurationProperties`. | Simplifies typed configuration.                    |
-| **@ConfigurationProperties(prefix="app")**  | Binds YAML properties to fields.                                       | Example: `app.url`, `app.timeout`.                 |
-| **@RestClientTest**                         | Auto-configures mock REST clients for tests.                           | For RestTemplate or WebClient testing.             |
-| **@DataJpaTest**                            | Configures in-memory DB for JPA testing.                               | Auto-rollbacks after tests.                        |
-| **@WebMvcTest**                             | Loads only web layer (controllers, filters).                           | Fast, isolated MVC tests.                          |
-| **@SpringBootTest**                         | Boots entire context for integration testing.                          | Heavier, full-system tests.                        |
-| **@MockBean**                               | Replaces a bean in the Spring context with a Mockito mock.             | Used in integration tests.                         |
-| **@TestConfiguration**                      | Test-specific bean overrides/config.                                   | Used inside test packages.                         |
-| **@ExtendWith(SpringExtension.class)**      | Integrates JUnit 5 with Spring testing.                                | Required for context injection.                    |
-| **@DisplayName("...")**                     | Describes test methods in JUnit 5 reports.                             | Improves readability.                              |
-| **@Import(ClassName.class)**                | Imports external configuration or bean definitions.                    | Useful in modular systems.                         |
-| **@EnableAutoConfiguration**                | Enables auto-config for Spring Boot apps.                              | Automatically configures beans based on classpath. |
-| **@EnableAspectJAutoProxy**                 | Enables AOP proxying for aspects.                                      | Required for `@Aspect`-based logging/security.     |
-| **@Aspect**                                 | Defines an Aspect for cross-cutting concerns.                          | Used with `@Before`, `@After`, `@Around`.          |
-
----
-
-### Error Handling
+#### Error Handling
 
 ```java
 @ControllerAdvice
 class GlobalHandler {
   @ExceptionHandler(Exception.class)
-  ResponseEntity<?> handle(Exception ex) {
-     return ResponseEntity.status(500)
+  ResponseEntity<Map<String, String>> handle(Exception ex) {
+     return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
        .body(Map.of("error", ex.getClass().getSimpleName(), "message", ex.getMessage()));
   }
 }
-
 ```
 
-### Recovery Example
+#### Retry & Recovery
 
 ```java
 @Retryable(value = IOException.class, maxAttempts = 3, backoff = @Backoff(delay = 1000))
-public String callExternalApi() { ... }
-
+public String callExternalApi() {
+    // Implementation goes here
+}
+// This method is called by Spring Retry after all retry attempts for callExternalApi() are exhausted.
 @Recover
 public String recover(IOException ex) {
     return "Fallback response";
 }
+@Recover
+public String recover(IOException ex) { return "Fallback response"; }
 ```
 
 ### Caching
@@ -196,140 +164,93 @@ public String recover(IOException ex) {
 public User findById(Long id) { return repo.findById(id).orElseThrow(); }
 ```
 
-### Validation
+#### Performance & Resilience
 
-Use `@Valid`, `@NotNull`, `@Pattern`.
-Prefer custom validators for complex inputs.
+* **Resilience4j:** circuit breakers, retries, bulkheads.
+* **@Async + TaskExecutor:** async workloads.
+* **Actuator:** exposes `/health`, `/metrics`, `/info`, `/env` and more; endpoints can be enabled/disabled or customized via config.
+* **Profiles:** environment isolation via `@Profile`.  
+  Activate a profile by setting `spring.profiles.active=dev` (in `application.properties`, environment variable, or JVM argument).
 
-### Performance & Resilience
+```java
+  @Bean
+  public TaskExecutor taskExecutor() {
+      return new ThreadPoolTaskExecutor();
+  }
 
-- **Resilience4j:** circuit breakers, retries, bulkheads.
-- **@Async + TaskExecutor:** async workloads.
-- **Actuator:** expose `/health`, `/metrics`.
-- **Profiles:** environment isolation via `@Profile`.
+  @Async
+  public void runAsyncTask() {
+      // Your async logic here
+  }
+  ```
+---
 
-### Spring Data JPA
+## 4) 🧰 REST API & Microservices Design
 
-- `@RepositoryRestResource` for automatic REST endpoints.
-- `PagingAndSortingRepository` for pagination.
-- Custom finder methods (`findByEmail`, `findTop10ByStatusOrderByDateDesc`).
-- Projections for lightweight DTOs.
+* **Resiliency:** Circuit breakers, bulkheads, fallback methods (use **Resilience4j** for implementation).
+* **Observability:** Tracing (Zipkin via Spring Cloud Sleuth), metrics (Prometheus via Micrometer), logs (ELK via Logback/Logstash); all integrate seamlessly with Spring Boot using auto-configured starters.
+* **Communication:** REST/gRPC (sync) vs Kafka/RabbitMQ (async).
+* **Communication:** REST/gRPC (sync) vs Kafka/RabbitMQ (async).
+  * Use **REST/gRPC** for request/response, low-latency, or transactional operations.
+  * Use **Kafka/RabbitMQ** for event-driven, decoupled, or high-throughput scenarios where reliability and eventual consistency are needed.
+* **Stateless design:** No HTTP sessions.
+* **Idempotency:** Use request keys for POSTs.
+* **Caching:** Use `ETag` & `Cache-Control`.
+
+### Patterns
+
+* **API Gateway → Service → Queue → DB.**
+* Service discovery via Eureka/Consul.
+* Config via Spring Cloud Config.
 
 ---
 
-## 🧩 **Testing — TDD, BDD & Frameworks**
+## 5) ☸️ Platform: Nginx, Cloud, Kubernetes
 
-### Unit Testing (TDD)
+### Nginx (edge gateway)
 
-- Write tests **before implementation** to define behavior.
-- Use **JUnit 5** annotations:
+* Reverse proxy & load balancer.
+* TLS termination.
+* JWT validation (`auth_request`/Lua).
+* Rate limiting, caching, compression.
 
-  - `@Test`, `@BeforeEach`, `@AfterEach`, `@DisplayName`.
-  - Assertions: `assertEquals`, `assertThrows`.
-- Isolate business logic — avoid Spring context unless required.
+```nginx
+server {
+  listen 443 ssl;
+  ssl_certificate /etc/ssl/cert.pem;
+  ssl_certificate_key /etc/ssl/key.pem;
 
-```java
-@Test
-void shouldCalculateTax() {
-    double result = calculator.calculateTax(100);
-    assertEquals(10, result);
+  location /api/ {
+    auth_request /auth;                 # Performs subrequest to /auth for JWT/session validation; expects 2xx for success
+    proxy_pass http://spring-backend;   # Forward to microservice
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+  }
 }
 ```
 
-### Mocking (Mockito)
+### Cloud Ecosystems (Private vs Public)
 
-- Replace dependencies to isolate unit logic.
-- `@Mock`, `@InjectMocks`, `when(...).thenReturn(...)`.
+**Public (AWS/Azure/GCP):** EKS/AKS/GKE, RDS/Dynamo/Cosmos, S3/Blob/GCS, CloudWatch/Monitor/Stackdriver.
+**Advantages:** scalability, elasticity, managed services.
+**Challenges:** cost, compliance, lock-in.
 
-```java
-when(service.fetchUser()).thenReturn(new User("Alice"));
-```
+**Private (VMware/OpenStack/PCF/OpenShift):** self-service infra, SDN/SDS, strict governance.
+**Advantages:** control, data residency, security posture.
+**Challenges:** hardware scaling, maintenance.
 
-### Integration Testing (Spring Boot)
+**Hybrid & Multi-Cloud:** private for regulated workloads; public for elastic traffic; Jenkins, Terraform, Vault, and Kubernetes as common layer.
 
-- Use `@SpringBootTest(webEnvironment = RANDOM_PORT)`.
-- `@TestConfiguration` for local overrides.
-- `@DataJpaTest` for repository layers with H2 in-memory DB.
+### Spring Boot in Cloud Context
 
-### Behavior-Driven Development (BDD)
+* **Stateless services**, **externalized config** (Config/Vault), **service discovery** (Eureka/Consul/K8s), **Resilience4j**, **Micrometer→Prometheus/Grafana**, **12-factor** principles.
 
-- Use **Cucumber**, **JBehave**, or **RestAssured** for BDD.
-- Scenarios written as “Given / When / Then”.
+### Kubernetes & Cloud Security
 
-```gherkin
-Given a valid token
-When a request is sent to /users
-Then response status is 200
-```
-
-## 🧰 **REST API & Microservices Design**
-
-- **Resiliency:** Circuit breakers, bulkheads, fallback methods.
-- **Observability:** Tracing (Zipkin), metrics (Prometheus), logs (ELK).
-- **Communication:**
-  - Synchronous: REST/gRPC.
-  - Asynchronous: Kafka/RabbitMQ.
-- **Security:**
-  - JWT across services.
-  - mTLS for internal communication.
-  - Rate limiting at API Gateway.
-- **Stateless design:** No HTTP sessions.
-- **Versioning:** `/api/v1/...`.
-- **Idempotency:** Use request keys for POSTs.
-- **Caching:** Use `ETag` & `Cache-Control`.
-- **Security:** JWT scopes, rate limits, gateway policies.
-
-**Microservices Patterns:**
-
-- **API Gateway → Service → Queue → DB.**
-- Service discovery via Eureka/Consul.
-- Config via Spring Cloud Config.
-
----
-
-## 🔐 **Spring Security**
-
-### Authentication & Authorization
-
-- Use JWT or OAuth2 Resource Server (`spring-boot-starter-oauth2-resource-server`).
-- Stateless APIs: `SessionCreationPolicy.STATELESS`.
-- Passwords: `BCryptPasswordEncoder`.
-- Role-based access via `@PreAuthorize("hasRole('ADMIN')")`.
-
-```java
-@Bean
-SecurityFilterChain security(HttpSecurity http) throws Exception {
-  return http.csrf().disable()
-             .authorizeHttpRequests(a -> a.anyRequest().authenticated())
-             .oauth2ResourceServer(o -> o.jwt())
-             .build();
-}
-```
-
-### Secure Headers
-
-`X-Frame-Options: DENY`,
-`X-Content-Type-Options: nosniff`,
-`Content-Security-Policy`,
-CORS whitelisting per environment.
-
----
-
-## ☸️ **Kubernetes & Cloud Security**
-
-- **Pods & Deployments:** Smallest deployable units; define replicas and rolling updates.
-- **Services:** Expose pods internally or externally (`ClusterIP`, `NodePort`, `LoadBalancer`).
-- **ConfigMaps & Secrets:** Store environment configs and sensitive keys separately.
-- **Autoscaling:**
-  - **HPA (Horizontal Pod Autoscaler):** Scales pods based on CPU/memory or custom metrics.
-  - **VPA (Vertical Pod Autoscaler):** Adjusts resource limits dynamically.
-  - **Cluster Autoscaler:** Adds/removes nodes based on pending pods.
-- **Probes:** `livenessProbe`, `readinessProbe`, `startupProbe`.
-- **Observability:** Prometheus + Grafana.
-- **Security:**
-  - Use RBAC for service accounts.
-  - Run pods as non-root.
-  - Network Policies to isolate namespaces.
+* **Pods/Deployments**, Services (`ClusterIP/NodePort/LoadBalancer`).
+* **ConfigMaps/Secrets**, probes (liveness/readiness/startup).
+* **Autoscaling:** HPA / VPA / Cluster Autoscaler.
+* **Observability:** Prometheus + Grafana.
+* **Security:** RBAC, run as non-root, NetworkPolicies.
 
 ```yaml
 apiVersion: autoscaling/v2
@@ -346,36 +267,26 @@ spec:
           averageUtilization: 70
 ```
 
-Here’s a **compact, engineer-friendly cheat sheet** for **Axon Framework + Kafka**, focused on how events, commands, and messages flow through the system — plus the most important configs like `group.id`, partitions, and replay behaviors.
-
 ---
 
-## ⚙️ Axon + Kafka Overview
+## 6) ⚙️ Kafka & Axon
 
-**Axon Framework** is a CQRS (Command Query Responsibility Segregation) + Event Sourcing framework.
-**Kafka** is often used as the *Event Bus / Event Store* for Axon distributed setups.
+### Axon + Kafka Overview
 
-Axon can use **Kafka as a distributed event message broker**, so event processors across microservices can subscribe to the same event stream and handle events in a scalable, decoupled way.
+**Axon Framework** (CQRS + Event Sourcing) with **Kafka** as distributed event bus/store for scalable processors.
 
----
+### Core Concepts Mapping
 
-## 🧩 Core Concepts Mapping
+| Concept         | Axon                 | Kafka Equivalent | Purpose             |
+| --------------- | -------------------- | ---------------- | ------------------- |
+| Command Bus     | Direct P2P           | —                | Executes intent     |
+| Event Bus       | Pub-sub              | Topic            | Distributes events  |
+| Query Bus       | P2P / scatter-gather | —                | Fetches read models |
+| Event Processor | Handler              | Consumer group   | Processes events    |
+| Aggregate       | Domain root          | —                | Applies events      |
+| Event Store     | Axon Server / Kafka  | Topic per type   | Persist/replay      |
 
-
-| Concept             | Axon                            | Kafka Equivalent               | Purpose                                       |
-| ------------------- | ------------------------------- | ------------------------------ | --------------------------------------------- |
-| **Command Bus**     | Direct point-to-point           | Not Kafka                      | Executes intent (creates/updates aggregate)   |
-| **Event Bus**       | Publish-subscribe               | Kafka topic                    | Distributes events to all interested handlers |
-| **Query Bus**       | Point-to-point / scatter-gather | Not Kafka                      | Fetches read model data                       |
-| **Event Processor** | Handles events                  | Kafka consumer group           | Subscribes to Kafka topics                    |
-| **Aggregate**       | Domain object root              | —                             | Source of truth that applies events           |
-| **Event Store**     | Axon Server / Kafka             | Kafka topic per aggregate type | Persists and replays events                   |
-
----
-
-## ⚡ Kafka Configuration Cheat Sheet
-
-### 1. **Basic Properties**
+### Kafka Configuration Cheat Sheet
 
 ```yaml
 axon:
@@ -385,76 +296,55 @@ axon:
       client-id: axon-producer
     consumer:
       bootstrap-servers: localhost:9092
-      group-id: billing-service   # Key for parallelism & scaling
+      group-id: billing-service
       auto-offset-reset: earliest
       enable-auto-commit: false
     properties:
       max.poll.records: 100
 ```
 
-### 2. **`group.id` Explained**
+**`group.id`**
 
-* Identifies a **consumer group** (like a logical Axon event processor).
-* Kafka guarantees:
-
-  * **One message per group partition at a time**.
-  * If two Axon nodes share the same `group.id`, they load balance event handling.
-  * If you want *multiple services* to process the same event (e.g., Notifications + Payments), give them **different group IDs**.
+* One message per partition per group at a time.
+* Same `group.id` → load-balance within a service.
+* Different `group.id`s → multiple services consume the same events.
 
 Example:
 
+| Service                | Group ID                 | Effect               |
+| ---------------------- | ------------------------ | -------------------- |
+| `payment-service`      | `payment-processor`      | Independent consumer |
+| `notification-service` | `notification-processor` | Also receives events |
 
-| Service                | Group ID                 | Effect                          |
-| ---------------------- | ------------------------ | ------------------------------- |
-| `payment-service`      | `payment-processor`      | Independent consumer            |
-| `notification-service` | `notification-processor` | Also receives same event stream |
+### Key Topics & Event Flow
 
----
+| Topic              | Description                   |
+| ------------------ | ----------------------------- |
+| `axon.events`      | Domain events                 |
+| `axon.commands`    | Optional command bus          |
+| `axon.dead-letter` | Failed processing             |
+| Custom topics      | Per aggregate/bounded context |
 
-## 🧠 Key Topics & Event Flow
+### Event Processors
 
+| Type                 | Processing   | Use Case                 |
+| -------------------- | ------------ | ------------------------ |
+| SubscribingProcessor | Real-time    | Single-node/local replay |
+| TrackingProcessor    | Offset-based | Distributed & replayable |
 
-| Topic Name         | Description                                                                                          |
-| ------------------ | ---------------------------------------------------------------------------------------------------- |
-| `axon.events`      | Default topic for domain events                                                                      |
-| `axon.commands`    | Optional if using Kafka as a distributed command bus                                                 |
-| `axon.dead-letter` | For failed event processing                                                                          |
-| Custom topics      | You can map aggregates or bounded contexts to dedicated topics (`customer.events`, `billing.events`) |
+### Common Configs & Gotchas
 
----
+| Config                       | Meaning                           | Tip                    |
+| ---------------------------- | --------------------------------- | ---------------------- |
+| `auto.offset.reset=earliest` | Start from beginning if no offset | For replay/testing     |
+| `enable.auto.commit=false`   | Let Axon control commit           | Prevent loss           |
+| `max.poll.interval.ms`       | Max time between polls            | Tune for slow handlers |
+| `max.poll.records`           | Records per batch                 | Throughput control     |
+| `acks=all`                   | Producer durability               | Wait for replicas      |
 
-## 🔁 Event Processors
+### Code Patterns
 
-Axon defines two main types:
-
-
-| Type                     | Processing                 | Use Case                          |
-| ------------------------ | -------------------------- | --------------------------------- |
-| **SubscribingProcessor** | Real-time (like in-memory) | Single-node or local event replay |
-| **TrackingProcessor**    | Pulls from Kafka offset    | Distributed & replayable          |
-
-When using Kafka, Axon automatically configures **`TrackingEventProcessor`**, backed by Kafka offsets.
-
-**Offsets** are stored per `group.id` → partition mapping.
-
----
-
-## 🪄 Common Configs and Gotchas
-
-
-| Config                       | Meaning                                 | Tip                            |
-| ---------------------------- | --------------------------------------- | ------------------------------ |
-| `auto.offset.reset=earliest` | Start from beginning if no offset found | Use this for replay or testing |
-| `enable.auto.commit=false`   | Let Axon control commit                 | Prevents message loss          |
-| `max.poll.interval.ms`       | Max time between polls                  | Tune if handlers are slow      |
-| `max.poll.records`           | Number of records per batch             | Control processing throughput  |
-| `acks=all`                   | Producer waits for all replicas         | Ensures durability             |
-
----
-
-## 🧰 Code Patterns
-
-### 1. Event Producer (Publishing to Kafka)
+**Producer**
 
 ```java
 @EventHandler
@@ -463,41 +353,29 @@ public void on(OrderCreatedEvent event) {
 }
 ```
 
-### 2. Kafka Event Consumer in Axon
+**Consumer**
 
 ```java
 @ProcessingGroup("order-events")
 public class OrderEventHandler {
-
-    @EventHandler
-    public void on(OrderCreatedEvent event) {
-        // update read model, trigger saga, etc.
-    }
+  @EventHandler
+  public void on(OrderCreatedEvent event) {
+      // update read model, trigger saga, etc.
+  }
 }
 ```
 
-> Each `@ProcessingGroup` maps to a Kafka `group.id`.
-> Multiple instances of the same service share load if they use the same group.
+> `@ProcessingGroup` ≈ consumer `group.id`.
 
----
+### Parallelism & Scaling
 
-## 🧮 Parallelism and Scaling
+* **Partitions** = parallelism unit. Key by aggregate ID to preserve order.
+* **Replicas** for fault tolerance.
+* Scale consumers **to** (not beyond) partition count.
 
+### Axon Kafka Integration Setup
 
-| Concept            | Kafka Behavior                                                   |
-| ------------------ | ---------------------------------------------------------------- |
-| **Partitions**     | Parallelism unit; one partition = one thread per consumer group  |
-| **Replicas**       | Fault tolerance                                                  |
-| **group.id**       | Controls load distribution and consumer uniqueness               |
-| **Keyed messages** | Events for same aggregate go to same partition (preserves order) |
-
-**Best practice:** use the aggregate ID as Kafka key → ensures ordered event stream per entity.
-
----
-
-## 🧱 Axon Kafka Integration Setup
-
-Add dependency:
+**Dependency**
 
 ```xml
 <dependency>
@@ -507,7 +385,7 @@ Add dependency:
 </dependency>
 ```
 
-Then configure your event processors:
+### Processor config
 
 ```yaml
 axon:
@@ -517,21 +395,14 @@ axon:
         mode: tracking
 ```
 
-Axon automatically binds these processors to Kafka topics using the extension’s configuration.
+### Error Handling Kafka
 
----
+* Automatic retries for transient errors.
+* DLQ (e.g., `axon.dead-letter`) for permanent failures; custom retry policies supported.
 
-## 🧨 Error Handling
+### Typical Architecture
 
-* Axon retries transient errors automatically.
-* Permanent failures → Dead Letter Queue topic (e.g., `axon.dead-letter`).
-* You can implement custom DLQ handlers or retry policies.
-
----
-
-## 🧭 Typical Architecture
-
-```
+```vbnet
 [Command -> Aggregate -> Event]
           ↓
      Kafka Topic ("axon.events")
@@ -543,17 +414,20 @@ Axon automatically binds these processors to Kafka topics using the extension’
 
 ---
 
-## 🧱 **JPA / ORM (Object-Relational Mapping)**
+## 7) 🗄️ Persistence (Spring Data JPA, JPA/ORM, SQL & NoSQL)
 
-### Entity Basics
+### Spring Data JPA
 
-- Annotate with `@Entity`, `@Id`, `@GeneratedValue`.
-- `@Column(nullable=false, unique=true)` for constraints.
-- `@Enumerated(EnumType.STRING)` to persist enums safely.
-- **Relationships:**
+* `@RepositoryRestResource` for automatic REST endpoints.
+* `PagingAndSortingRepository` for pagination.
+* Custom finder methods (`findByEmail`, `findTop10ByStatusOrderByDateDesc`).
+* Projections for lightweight DTOs.
 
-  - `@OneToOne`, `@OneToMany`, `@ManyToMany`, `@JoinColumn`.
-  - Use `cascade = CascadeType.ALL` carefully.
+### JPA / ORM (Entity Modeling)
+
+* `@Entity`, `@Id`, `@GeneratedValue`.
+* `@Column(nullable=false, unique=true)`, `@Enumerated(EnumType.STRING)`.
+* Relationships: `@OneToOne`, `@OneToMany`, `@ManyToMany`, `@JoinColumn` (use `cascade` carefully).
 
 ```java
 @Entity
@@ -565,29 +439,19 @@ class User {
 }
 ```
 
-### Lazy vs Eager Loading
+* Lazy vs eager: prefer **LAZY** to avoid large graphs.
 
-- Default: `@OneToMany` is **LAZY**, `@ManyToOne` is **EAGER**.
-- Lazy is preferred — prevents loading large graphs unintentionally.
+**Query Optimization**
 
-### Query Optimization
+* JPQL/Criteria; native SQL for complex joins.
+* `@BatchSize(size=20)`.
+* Cache with Spring Cache or 2nd-level cache (EHCache, Redis).
 
-- **JPQL** or **CriteriaBuilder** for dynamic queries.
-- Use `@Query` with native SQL when complex joins are required.
-- Batch fetching: `@BatchSize(size=20)`.
-- Cache results with **Spring Cache** or second-level cache (EHCache, Redis).
+### SQL & NoSQL Advanced Concepts
 
----
+**SQL**
 
-## 🧮 **SQL & NoSQL Advanced Concepts**
-
-### SQL (Relational)
-
-- **Normalization:** reduce redundancy.
-- **Indexes:** B-tree (default), hash indexes for equality queries.
-- **Transactions:** ACID compliance; use `@Transactional(isolation=READ_COMMITTED)` in Spring.
-- **Joins:** Inner, left, self, cross — optimize with proper indexes.
-- **Query optimization:** Analyze using `EXPLAIN` plan.
+* Normalization, indexes (B-tree/hash), ACID (`@Transactional(isolation=READ_COMMITTED)`), joins, `EXPLAIN`.
 
 ```sql
 SELECT u.name, o.amount
@@ -595,15 +459,11 @@ FROM users u JOIN orders o ON u.id = o.user_id
 WHERE o.amount > 100;
 ```
 
-### NoSQL (Document / Key-Value)
+**NoSQL**
 
-- **MongoDB:** flexible schema, great for nested documents.
-- **Cassandra / DynamoDB:** wide-column stores for scale and throughput.
-- **Redis:** caching, pub/sub, rate limiting.
-- **Elasticsearch:** full-text search and log analytics.
+* MongoDB (documents), Cassandra/DynamoDB (wide-column), Redis (cache/pub-sub/rate limit), Elasticsearch (search/logs).
 
-**Design Trade-Offs:**
-
+**Trade-offs**
 
 | Factor      | SQL           | NoSQL                   |
 | ----------- | ------------- | ----------------------- |
@@ -615,20 +475,34 @@ WHERE o.amount > 100;
 
 ---
 
-## 🛡️ **Secure SDLC & Threat Modeling**
+## 8) 🔐 Security
 
-### Phases
+### Spring Security (AuthN/Z)
 
-1. **Requirements:** Define controls early.
-2. **Design:** Apply STRIDE threat modeling.
-3. **Implementation:** Embed SAST/SCA.
-4. **Testing:** DAST + fuzzing.
-5. **Deployment:** Runtime protection, vulnerability scanning.
+* JWT or OAuth2 Resource Server (`spring-boot-starter-oauth2-resource-server`).
+* Stateless APIs: `SessionCreationPolicy.STATELESS`.
+* Passwords: `BCryptPasswordEncoder`.
+* Role-based access: `@PreAuthorize("hasRole('ADMIN')")`.
 
----
+```java
+@Bean
+SecurityFilterChain security(HttpSecurity http) throws Exception {
+  return http.csrf().disable()
+             .authorizeHttpRequests(a -> a.anyRequest().authenticated())
+             .oauth2ResourceServer(o -> o.jwt())
+             .build();
+}
+```
 
-## 🧪 **Security Testing & Vulnerability Management**
+### Secure Headers
 
+* `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy`, CORS per env.
+
+### Secure SDLC & Threat Modeling
+
+**Phases:** Requirements → Design (STRIDE) → Implementation (SAST/SCA) → Testing (DAST/fuzzing) → Deployment (runtime & IaC scans).
+
+### Security Testing & Vulnerability Management
 
 | Type     | Tools                             | Detects                     |
 | -------- | --------------------------------- | --------------------------- |
@@ -637,187 +511,301 @@ WHERE o.amount > 100;
 | DAST     | ZAP, Burp Suite                   | Runtime flaws               |
 | IaC Scan | Checkov, KICS                     | Insecure Terraform/K8s YAML |
 
-**Vulnerability Lifecycle:** Discover → Validate → Prioritize (CVSS) → Patch → Retest → Report.
+**Lifecycle:** Discover → Validate → Prioritize (CVSS) → Patch → Retest → Report.
+
+### Network & Event Security
+
+* **Scanning:** Nmap, Nessus, Qualys.
+* **Controls:** WAF, segmented VPCs.
+* **SIEM/SOAR:** Splunk, QRadar, ELK, Azure Sentinel.
+* **DLP:** Protect PCI/PII; encrypt at rest & in transit (TLS 1.3).
+
+### Encryption (Reversible) vs Hashing (Irreversible)
+
+#### Encryption
+
+* Symmetric (AES/ChaCha20) and Asymmetric (RSA/ECC).
+* Use for data at rest/in transit; recoverable.
+
+#### Hashing
+
+* SHA-256, bcrypt/scrypt/Argon2.
+* Integrity, password storage; not reversible.
+
+#### Quick Comparison
+
+| Feature    | Encryption      | Hashing         |
+| ---------- | --------------- | --------------- |
+| Reversible | ✅               | ❌            |
+| Uses a Key | ✅               | ❌            |
+| Goal       | Confidentiality | Integrity/Auth  |
+| Examples   | AES, RSA        | SHA-256, bcrypt |
+
+#### Practical Rules
+
+* Never encrypt passwords; hash with slow KDF + salt.
+* Encrypt sensitive data you must read back (cards, PII, API keys).
+* Use both: TLS channels, hashed secrets, optional ciphertext hashing.
+
+### Security Use Cases (Interview Ready)
+
+| Scenario                | Solution                               |
+| ----------------------- | -------------------------------------- |
+| Race condition in API   | synchronized or Redis distributed lock |
+| API abuse / brute force | Redis rate limiting + CAPTCHA          |
+| Sensitive logs          | PII redaction filter                   |
+| DDoS                    | Rate limiting + CDN caching            |
+| Outdated dependency     | Automate SCA → ticket → patch          |
+| File upload risk        | MIME validation + antivirus (ClamAV)   |
+| GC CPU spike            | Enable GC logs; analyze via GCeasy     |
 
 ---
 
-## 🌩️ **Network & Event Security**
+## 11) ⚙️ Design Patterns (Security & System Context)
 
-### Network Scanning
-
-- **Nmap**, **Nessus**, **Qualys** for open ports and SSL weakness.
-- Use **WAF** and segmented VPCs.
-
-### SIEM / SOAR
-
-- **Splunk**, **QRadar**, **ELK**, **Azure Sentinel** for log correlation.
-- Build alerts for anomaly detection, privilege escalation, data exfiltration.
-
-### DLP
-
-- Block sensitive data transfers (PCI, PII).
-- Encrypt at rest & in transit (TLS 1.3).
+* **Singleton:** Central `SecurityConfig`, connection pool.
+* **Factory:** Crypto algorithms, JWT parser.
+* **Strategy:** Switch authentication/hash strategies (BCrypt ↔ Argon2).
+* **Decorator:** Add logging, metrics, or auditing layers.
+* **Observer:** Event notification to SIEM/monitoring.
+* **Proxy:** API gateway enforcing auth & throttling.
+* **Chain of Responsibility:** Servlet filters → validation → authorization.
 
 ---
 
-## 🔐 Encryption — Reversible Protection
-
-**Purpose:**
-Keep data *confidential* while allowing authorized users to recover it.
-
-**How it works:**
-
-* Uses a **key** to transform plaintext into unreadable ciphertext.
-* With the right key, you can **decrypt** it back to the original message.
-
-**Example:**
-
-```text
-Input: "Secret123"
-Key: "A1B2C3"
-Output: "F81@^q0Z"  ← Encrypted
-```
-
-Decrypt with the same key → get back "Secret123".
-
-**Types:**
-
-1. **Symmetric encryption:** Same key for encryption and decryption.
-
-   * Algorithms: AES, DES, ChaCha20
-   * Example: Used for file encryption or database fields.
-2. **Asymmetric encryption:** Public key encrypts, private key decrypts.
-
-   * Algorithms: RSA, ECC
-   * Example: HTTPS (TLS), email encryption, digital signatures.
-
-**Use cases:**
-
-* Protecting data at rest (databases, files)
-* Secure data in transit (SSL/TLS)
-* Reversible protection when data must be retrieved later
+Absolutely—here’s an add-on you can drop straight into your GitHub Markdown. It keeps things compact, interview-ready, and GitHub-renderable (uses Mermaid for the diagram).
 
 ---
 
-## 🧮 Hashing — Irreversible Integrity Check
+## 🧩 Design Patterns — Quick Ref (Java/Spring)
 
-**Purpose:**
-Ensure *integrity* and *verification* of data, not secrecy.
+| Pattern                     | When to Use                                       | One-liner Example                                                  |
+| --------------------------- | ------------------------------------------------- | ------------------------------------------------------------------ |
+| **Factory**                 | Hide creation logic; return interface/abstraction | `CryptoFactory.get("AES").encrypt(data)`                           |
+| **Abstract Factory**        | Create families of related objects                | `AwsStackFactory.createQueue(); createStore();`                    |
+| **Builder**                 | Build complex immutable objects fluently          | `User.builder().id(1).name("Ada").build()`                         |
+| **Singleton**               | One instance app-wide (stateless, thread-safe)    | `@Bean public ObjectMapper mapper(){ return new ObjectMapper(); }` |
+| **Strategy**                | Swap algorithms at runtime                        | `hasher = new BcryptStrategy(); hasher.hash(pw)`                   |
+| **Template Method**         | Fixed steps, customizable hooks                   | `AbstractJob.run() -> pre(); doRun(); post();`                     |
+| **Decorator**               | Add behavior without changing core type           | `new LoggingClient(new RetryingClient(http))`                      |
+| **Proxy**                   | Control access, lazy load, caching                | Spring AOP proxies around services                                 |
+| **Adapter**                 | Make incompatible APIs play nice                  | Wrap legacy SOAP client behind `PaymentPort`                       |
+| **Facade**                  | Simple API over complex subsystem                 | `PaymentFacade.authorizeAndCapture()`                              |
+| **Observer / Pub-Sub**      | React to events                                   | Spring `ApplicationEventPublisher` / Kafka                         |
+| **Chain of Responsibility** | Pipeline of filters/validators                    | Servlet filter chain; custom validation chain                      |
+| **Command**                 | Encapsulate requests; queue/retry                 | `PlaceOrderCommand` -> handler -> outbox                           |
+| **Repository**              | Encapsulate persistence                           | `UserRepository.findByEmail(...)`                                  |
+| **Specification**           | Reusable query predicates                         | JPA Specification for dynamic filters                              |
 
-**How it works:**
+### Micro-snippets
 
-* Takes input of any length → outputs fixed-size digest (hash).
-* Cannot be reversed to get original input.
-* Any small change in input gives completely different hash.
-
-**Example:**
-
-```text
-Input: "Secret123"
-Hash (SHA-256): 4ffba5659d30...
-```
-
-**Properties:**
-
-* **Deterministic:** Same input always → same hash.
-* **Irreversible:** You can’t get input back from hash.
-* **Avalanche effect:** Tiny input change → drastically different output.
-* **Collision-resistant:** Two different inputs shouldn’t produce same hash.
-
-**Use cases:**
-
-* Password storage (`bcrypt`, `scrypt`, `Argon2`)
-* File integrity verification (e.g., checksums)
-* Blockchain (each block’s hash links to previous one)
-* Digital signatures (hashed before signing)
-
----
-
-## ⚖️ Quick Comparison
-
-
-| Feature            | Encryption                            | Hashing                     |
-| ------------------ | ------------------------------------- | --------------------------- |
-| Reversible         | ✅ Yes                                | ❌ No                       |
-| Uses a Key         | ✅ Yes                                | ❌ No                       |
-| Primary Goal       | Confidentiality                       | Integrity / Authentication  |
-| Example Algorithms | AES, RSA                              | SHA-256, bcrypt             |
-| Output Size        | Variable                              | Fixed                       |
-| Typical Use        | Storing data securely but retrievable | Verifying data or passwords |
-
----
-
-## 🧠 Practical Security Rules
-
-* **Never encrypt passwords.**
-  Store password *hashes* using a **slow hashing algorithm** (`bcrypt`, `Argon2`) + salt.
-* **Encrypt sensitive data you must read back**, like:
-  credit card numbers, personal info, or API keys.
-* **Use both together:**
-
-  * Encrypt communication channels (TLS).
-  * Hash passwords and tokens before storage.
-  * Optionally hash ciphertext for tamper detection.
-
----
-
-## 🧠 **Security Use Cases (Interview Ready)**
-
-
-| Scenario                | Solution                                             |
-| ----------------------- | ---------------------------------------------------- |
-| Race condition in API   | Use synchronized block or distributed lock via Redis |
-| API abuse / brute force | Apply Redis rate limiting + CAPTCHA                  |
-| Sensitive logs          | Redact PII via logging filter                        |
-| DDoS attack             | Rate limiting + CDN caching                          |
-| Outdated dependency     | Automate SCA → ticket + patch                       |
-| File upload risk        | Validate MIME + antivirus (ClamAV)                   |
-| GC CPU spike            | Enable GC logs; analyze via GCeasy                   |
-
----
-
-## Potential Code Problem
+#### Factory
 
 ```java
-  public int[] process(int[] balances, String[] transactions) {
-      int[] updated = balances.clone();
+interface Hasher { String hash(String s); }
+class BcryptHasher implements Hasher { /* ... */ }
+class Argon2Hasher implements Hasher { /* ... */ }
 
-      for (String txn : transactions) {
-          String[] parts = txn.split(" ");
-          String type = parts[0].toLowerCase();
-
-          switch (type) {
-              case "deposit": {
-                  int account = Integer.parseInt(parts[1]) - 1;
-                  int amount = Integer.parseInt(parts[2]);
-                  updated[account] += amount;
-                  break;
-              }
-              case "withdraw": {
-                  int account = Integer.parseInt(parts[1]) - 1;
-                  int amount = Integer.parseInt(parts[2]);
-                  if (updated[account] < amount) {
-                      return new int[]{account + 1, -1};
-                  }
-                  updated[account] -= amount;
-                  break;
-              }
-              case "transfer": {
-                  int from = Integer.parseInt(parts[1]) - 1;
-                  int to = Integer.parseInt(parts[2]) - 1;
-                  int amount = Integer.parseInt(parts[3]);
-                  if (updated[from] < amount) {
-                      return new int[]{from + 1, -1};
-                  }
-                  updated[from] -= amount;
-                  updated[to] += amount;
-                  break;
-              }
-              default:
-                  System.out.println("Invalid transaction type: " + type);
-          }
-      }
-
-      return updated;
+final class HasherFactory {
+  static Hasher of(String alg) {
+    return switch (alg) { case "argon2" -> new Argon2Hasher(); default -> new BcryptHasher(); };
   }
+}
+```
+
+#### Builder
+
+```java
+@Getter @Builder @AllArgsConstructor
+class Order { Long id; String status; BigDecimal amount; }
+```
+
+#### Strategy
+
+```java
+class PasswordService {
+  private final Hasher hasher; // injected
+  String store(String plain) { return hasher.hash(plain); }
+}
+```
+
+#### Decorator
+
+```java
+class MetricsClient implements HttpClient {
+  private final HttpClient delegate; private final MeterRegistry m;
+  Response send(Request r){ Timer t=m.timer("http"); return t.record(() -> delegate.send(r)); }
+}
+```
+
+#### Chain of Responsibility
+
+```java
+interface Rule { Optional<String> apply(Request r); }
+class CompositeRules implements Rule {
+  List<Rule> rules; public Optional<String> apply(Request r){ return rules.stream()
+      .map(rule -> rule.apply(r)).filter(Optional::isPresent).findFirst().orElse(Optional.empty()); }
+}
+```
+
+---
+
+## 🗺️ Microservices System Diagram (Mermaid)
+
+```mermaid
+flowchart LR
+  subgraph Client
+    U[User/Web/Mobile]
+  end
+
+  U -->|HTTPS| CDN[(CDN/WAF)]
+  CDN --> NG[Nginx / API Gateway]
+
+  NG -->|/auth/*| AUTH[Auth Service]
+  NG -->|/orders/*| ORDER[Order Service]
+  NG -->|/inventory/*| INV[Inventory Service]
+  NG -->|/payments/*| PAY[Payment Service]
+  NG -->|/pricing/*| PRICE[Pricing/Tax Service]
+  NG -->|/notify/*| NOTIF[Notification Service]
+  NG -->|/query/*| QUERY[Query/Read API]
+
+  %% Async backbone
+  ORDER <-->|events| K[(Kafka)]
+  INV   <-->|events| K
+  PAY   <-->|events| K
+  PRICE <-->|events| K
+  NOTIF <-->|events| K
+  QUERY <-->|streams| K
+
+  %% Outbox pattern
+  ORDER -.outbox sync.-> DB_ORDER[(Postgres)]
+  INV   -.outbox sync.-> DB_INV[(Postgres)]
+  PAY   -.outbox sync.-> DB_PAY[(PCI Boundary / Postgres)]
+  PRICE -.outbox sync.-> DB_PRICE[(Postgres)]
+  QUERY --> ES[(Elasticsearch / Materialized Views)]
+
+  %% Caches and shared infra
+  NG --> RL[(Rate Limiter / Redis)]
+  AUTH --> RDB[(Redis - token/session blacklist)]
+  ORDER --> RC[(Redis - idempotency keys)]
+
+  %% External providers
+  PAY --> PSP[(External Payment Processor)]
+  NOTIF --> CH[(Email/SMS/Push Providers)]
+
+  %% Observability
+  subgraph Obs[Observability]
+    OTEL[OpenTelemetry Traces]
+    LOGS[Structured Logs]
+    MET[Prometheus Metrics]
+  end
+
+  NG --- OTEL
+  ORDER --- OTEL
+  INV --- OTEL
+  PAY --- OTEL
+  PRICE --- OTEL
+  NOTIF --- OTEL
+  QUERY --- OTEL
+
+  classDef svc fill:#dff,stroke:#09c,stroke-width:1px;
+  class AUTH,ORDER,INV,PAY,PRICE,NOTIF,QUERY svc;
+```
+
+### How to talk through it (30 seconds)
+
+* **Edge:** Nginx/API Gateway terminates TLS, validates JWT, rate-limits; forwards to stateless services.
+* **Write path:** Commands hit services → local DB commit + **outbox** → Kafka events.
+* **Read side:** Kafka feeds **Query/Read API** (materialized views/Elasticsearch) for low-latency status queries.
+* **Workflows:** Cross-service steps coordinated via **Sagas**; idempotency keys in Redis; per-aggregate ordering via Kafka partitioning.
+* **Security/PCI:** Payment service isolated with PCI boundary; tokens and blacklists in Redis; tracing/metrics via OTel/Prometheus.
+
+---
+
+
+## 9) 🧪 Testing — TDD, BDD & Frameworks
+
+### Unit Testing (TDD)
+
+* Write tests first; use JUnit 5 (`@Test`, `@BeforeEach`, `@AfterEach`, `@DisplayName`).
+* Assertions: `assertEquals`, `assertThrows`.
+* Isolate business logic (avoid full Spring context).
+
+```java
+@Test
+void shouldCalculateTax() {
+    double result = calculator.calculateTax(100);
+    assertEquals(10, result);
+}
+```
+
+### Mocking (Mockito)
+
+* `@Mock`, `@InjectMocks`, `when(...).thenReturn(...)`.
+
+```java
+when(service.fetchUser()).thenReturn(new User("Alice"));
+```
+
+### Integration Testing (Spring Boot)
+
+* `@SpringBootTest(webEnvironment = RANDOM_PORT)`.
+* `@TestConfiguration` for overrides.
+* `@DataJpaTest` with H2 for repositories.
+
+### Behavior-Driven Development (BDD)
+
+* Cucumber/JBehave/RestAssured; Given/When/Then.
+
+```gherkin
+Given a valid token
+When a request is sent to /users
+Then response status is 200
+```
+
+---
+
+## 10) 🧪 Coding Exercise (Transactions)
+
+```java
+public int[] process(int[] balances, String[] transactions) {
+    int[] updated = balances.clone();
+
+    for (String txn : transactions) {
+        String[] parts = txn.split(" ");
+        String type = parts[0].toLowerCase();
+
+        switch (type) {
+            case "deposit": {
+                int account = Integer.parseInt(parts[1]) - 1;
+                int amount = Integer.parseInt(parts[2]);
+                updated[account] += amount;
+                break;
+            }
+            case "withdraw": {
+                int account = Integer.parseInt(parts[1]) - 1;
+                int amount = Integer.parseInt(parts[2]);
+                if (updated[account] < amount) {
+                    return new int[]{account + 1, -1};
+                }
+                updated[account] -= amount;
+                break;
+            }
+            case "transfer": {
+                int from = Integer.parseInt(parts[1]) - 1;
+                int to = Integer.parseInt(parts[2]) - 1;
+                int amount = Integer.parseInt(parts[3]);
+                if (updated[from] < amount) {
+                    return new int[]{from + 1, -1};
+                }
+                updated[from] -= amount;
+                updated[to] += amount;
+                break;
+            }
+            default:
+                System.out.println("Invalid transaction type: " + type);
+        }
+    }
+    return updated;
+}
 ```
