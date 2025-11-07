@@ -45,28 +45,51 @@ list.stream()
 
 ---
 
-## 🧩 **Data Structures & Use Cases**
+## 🏗️ **Data Structures & Use Cases**
 
+### 🧩 Core Collections
 
-| Data Structure           | Time Complexity (Avg)                       | Pros                                    | Cons                                    | Ideal Use Cases                              |
-| ------------------------ | ------------------------------------------- | --------------------------------------- | --------------------------------------- | -------------------------------------------- |
-| **Array**                | Access: O(1)<br> Insert/Delete: O(n)        | Fast random access, cache friendly.     | Fixed size, costly resize.              | Static datasets, caching numeric data.       |
-| **ArrayList**            | Access: O(1)<br> Insert/Delete: O(n)        | Dynamic resizing, easy iteration.       | Slow insertion/removal mid-list.        | Ordered data, frequent reads.                |
-| **LinkedList**           | Access: O(n)<br> Insert/Delete: O(1) (ends) | Fast insert/delete at ends.             | High memory overhead, no random access. | Queues, job schedulers, undo stacks.         |
-| **HashMap**              | Access: O(1)<br> Worst: O(n)                | Fast key lookup, null keys supported.   | Unordered, not thread-safe.             | Caching, lookups, symbol tables.             |
-| **ConcurrentHashMap**    | Access: O(1)                                | Thread-safe, concurrent reads/writes.   | Slightly higher memory use.             | Caches, rate-limiters, metrics tracking.     |
-| **TreeMap**              | Access: O(log n)                            | Sorted keys, navigable map features.    | Slower than HashMap.                    | Leaderboards, range queries, sorted configs. |
-| **HashSet**              | Access: O(1)                                | Ensures unique elements.                | No ordering, not indexed.               | Membership checks, uniqueness enforcement.   |
-| **TreeSet**              | Access: O(log n)                            | Sorted unique set.                      | Slower insert/remove.                   | Sorted collections (tags, ranks).            |
-| **PriorityQueue (Heap)** | Insert/Delete: O(log n)<br> Peek: O(1)      | Efficient min/max retrieval.            | Not thread-safe.                        | Task scheduling, Dijkstra, throttling.       |
-| **Stack (Deque)**        | Push/Pop: O(1)                              | Simple LIFO.                            | Overuse → readability issues.          | Expression parsing, recursion emulation.     |
-| **Queue / Deque**        | Offer/Poll: O(1)                            | Thread-safe variants (`BlockingQueue`). | None major.                             | Producer-consumer, thread pools.             |
-| **LinkedHashMap**        | Access: O(1)                                | Predictable order, easy LRU cache.      | Slightly slower than HashMap.           | LRU caching, recently-used history.          |
-| **CopyOnWriteArrayList** | Read: O(1), Write: O(n)                     | Safe concurrent reads.                  | Expensive writes.                       | Config lists, small read-mostly data.        |
-| **BlockingQueue**        | Offer/Poll: O(1)                            | Thread-safe, blocking behavior.         | Can block indefinitely.                 | Task queues, async pipelines.                |
-| **WeakHashMap**          | Access: O(1)                                | Auto-clears when keys GC’d.            | Weak refs may vanish.                   | Cache for non-critical metadata.             |
-| **EnumMap**              | Access: O(1)                                | Compact & fast for enum keys.           | Works only with enums.                  | Feature flags, enum-based lookup.            |
-| **BitSet**               | Access: O(1)                                | Space-efficient booleans.               | Fixed size.                             | Flags, bitmap operations.                    |
+| Data Structure | Avg. Time Complexity              | Typical Use / Notes             |
+| -------------- | --------------------------------- | ------------------------------- |
+| **Array**      | Access: O(1), Insert/Delete: O(n) | Fixed-size, fast random access. |
+| **ArrayList**  | Access: O(1), Insert/Delete: O(n) | Dynamic resize, good for reads. |
+| **LinkedList** | Access: O(n), Insert/Delete: O(1) | Fast at ends, high overhead.    |
+
+---
+
+### 🔑 Maps
+
+| Data Structure        | Avg. Time Complexity      | Typical Use / Notes                     |
+| --------------------- | ------------------------- | --------------------------------------- |
+| **HashMap**           | Access: O(1), Worst: O(n) | Fast lookup, unordered.                 |
+| **ConcurrentHashMap** | Access: O(1)              | Thread-safe, low contention.            |
+| **TreeMap**           | Access: O(log n)          | Sorted keys, slower than HashMap.       |
+| **LinkedHashMap**     | Access: O(1)              | Predictable order, great for LRU cache. |
+| **WeakHashMap**       | Access: O(1)              | Auto-clears when keys are GC’d.         |
+| **EnumMap**           | Access: O(1)              | Optimized for enum keys.                |
+
+---
+
+### 🔁 Sets
+
+| Data Structure | Avg. Time Complexity | Typical Use / Notes         |
+| -------------- | -------------------- | --------------------------- |
+| **HashSet**    | Access: O(1)         | Unique, unordered elements. |
+| **TreeSet**    | Access: O(log n)     | Sorted unique elements.     |
+| **BitSet**     | Access: O(1)         | Space-efficient flags.      |
+
+---
+
+### 🧵 Queues & Stacks
+
+| Data Structure           | Avg. Time Complexity    | Typical Use / Notes         |
+| ------------------------ | ----------------------- | --------------------------- |
+| **Stack / Deque**        | Push/Pop: O(1)          | LIFO operations.            |
+| **Queue / Deque**        | Offer/Poll: O(1)        | FIFO or double-ended.       |
+| **BlockingQueue**        | Offer/Poll: O(1)        | Thread-safe blocking tasks. |
+| **PriorityQueue**        | Insert/Delete: O(log n) | Min/max retrieval.          |
+| **CopyOnWriteArrayList** | Read: O(1), Write: O(n) | Safe concurrent reads.      |
+
 
 ---
 
@@ -94,26 +117,49 @@ list.stream()
 
 ### **Spring Boot Annotation Reference**
 
-
-| Annotation                            | Definition                                                                                    | Use Case                                                        | Notes                                                                                                                                         |
-_| ------------------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |_
-| **@RestController**                   | Combines`@Controller` + `@ResponseBody`; marks a class as a REST endpoint returning JSON/XML. | Used for API endpoints.                                         | Automatically serializes return objects to HTTP response.                                                                                     |
-| **@Repository**                       | Indicates a persistence/DAO layer component.                                                  | Database access logic (JPA, JDBC, etc.).                        | Enables exception translation (e.g., converts SQL exceptions to`DataAccessException`).                                                        |
-| **@Value("\${property}")**            | Injects property values from configuration files (`application.yml` or `.properties`).        | Inject config variables like URLs, secrets.                     | Supports SpEL (Spring Expression Language).                                                                                                   |
-| **@DependsOn**                        | Forces bean initialization order                                                              | Static initializers/singletons that depend on global resources  | Ensuring Lifecycle Hooks Execute in Correct Order. Use when beans depend on other**@PostConstruct** methods, **@DependsOn** guarantees order. |
-| **@Transactional**                    | Defines transaction boundaries on methods or classes.                                         | Used for database operations that need rollback on failure.     | Supports propagation/isolation levels.                                                                                                        |
-| **@ControllerAdvice**                 | Global handler for exceptions or cross-cutting controller logic.                              | Centralizes error handling.                                     | Combine with`@ExceptionHandler`.                                                                                                              |
-| **@RestControllerAdvice**             | Same as above but automatically adds`@ResponseBody`.                                          | Consistent API error responses.                                 | Ideal for JSON error output.                                                                                                                  |
-| **@Cacheable("name")**                | Caches method return values based on parameters.                                              | Used to improve performance for read-heavy APIs.                | Combine with`@CacheEvict`, `@CachePut` for cache control.                                                                                     |
-| **@CacheEvict**                       | Removes entries from cache.                                                                   | After updates/deletes.                                          | Can clear all cache (`allEntries=true`).                                                                                                      |
-| **@Async**                            | Marks a method for asynchronous execution.                                                    | Offload long-running tasks (email, logs).                       | Requires`@EnableAsync`.                                                                                                                       |
-| **@Scheduled(cron="...")**            | Runs scheduled tasks periodically.                                                            | Background jobs, maintenance tasks.                             | Requires`@EnableScheduling`.                                                                                                                  |
-| **@Lazy**                             | Delays bean creation until first requested.                                                   | Improves startup time for heavy beans.                          | Use cautiously for dependencies.                                                                                                              |
-| **@Scope("prototype")**               | Creates a new bean instance on each injection.                                                | For stateful or request-specific beans.                         | Default is singleton.                                                                                                                         |
-| **@ConditionalOnProperty**            | Enables a bean only if a property in config matches a condition.                              | Feature toggles (e.g., enable Redis caching only if flag=true). | Example:`@ConditionalOnProperty(name="feature.x", havingValue="true")`.                                                                       |
-| **@ConditionalOnMissingBean**         | Loads bean only if another bean of same type is not present.                                  | Override auto-config behavior.                                  | Common in library development.                                                                                                                |
-| **@EnableConfigurationProperties**    | Enables property binding to POJOs with`@ConfigurationProperties`.                             | Bind YAML configs to objects.                                   | Simplifies config injection.                                                                                                                  |
-| **@RateLimiter** _(custom/3rd-party)_ | Limits number of method executions per time window.                                           | API rate limiting / abuse prevention.                           | Often from Resilience4j: `@RateLimiter(name="apiLimiter").                                                                                    |
+| Annotation                                  | Purpose / Use Case                                                     | Notes                                              |
+| ------------------------------------------- | ---------------------------------------------------------------------- | -------------------------------------------------- |
+| **@RestController**                         | Combines `@Controller` + `@ResponseBody` to expose REST APIs.          | Auto-serializes return objects to JSON/XML.        |
+| **@Controller**                             | Handles web requests, typically returning views (MVC).                 | Use with `ModelAndView`.                           |
+| **@Service**                                | Marks business logic layer beans.                                      | Spring-managed singleton.                          |
+| **@Repository**                             | Persistence/DAO layer; translates SQL exceptions.                      | Used for JPA, JDBC, etc.                           |
+| **@Configuration**                          | Declares bean definitions.                                             | Equivalent to XML config, type-safe.               |
+| **@Bean**                                   | Defines a Spring-managed bean inside config classes.                   | Lifecycle-aware, injectable.                       |
+| **@Value("${property}")**                   | Injects values from config files or env vars.                          | Supports SpEL (`#{}`) for expressions.             |
+| **@Transactional**                          | Defines DB transaction boundaries.                                     | Supports rollback, isolation, propagation.         |
+| **@Profile("prod")**                        | Loads beans only under a given environment profile.                    | Common for `dev`, `test`, `prod`.                  |
+| **@DependsOn("beanName")**                  | Enforces bean initialization order.                                    | Useful for implicit dependencies.                  |
+| **@ConditionalOnProperty**                  | Loads bean if config flag matches.                                     | Feature toggles, modular features.                 |
+| **@ConditionalOnMissingBean**               | Loads bean only if not already defined.                                | Prevents duplicate beans.                          |
+| **@Lazy**                                   | Delays bean creation until first needed.                               | Reduces startup time.                              |
+| **@Scope("prototype")**                     | Creates new instance per injection.                                    | Default is singleton.                              |
+| **@Cacheable("cacheName")**                 | Caches method results by key.                                          | Combine with `@CacheEvict`, `@CachePut`.           |
+| **@CacheEvict**                             | Clears cached entries.                                                 | Often after update/delete ops.                     |
+| **@Retryable**                              | Retries failed method calls automatically.                             | Requires `@EnableRetry`.                           |
+| **@Recover**                                | Fallback for `@Retryable` failures.                                    | Must match retry method signature.                 |
+| **@RateLimiter** *(Resilience4j)*           | Limits API execution rate per time window.                             | `@RateLimiter(name="apiLimiter")`.                 |
+| **@CircuitBreaker** *(Resilience4j)*        | Stops calling failing services temporarily.                            | Requires `@EnableCircuitBreaker`.                  |
+| **@Bulkhead** *(Resilience4j)*              | Isolates service calls via limited threads/semaphores.                 | Prevents cascading failures.                       |
+| **@Async**                                  | Executes methods asynchronously in background.                         | Needs `@EnableAsync`.                              |
+| **@Scheduled(cron="...")**                  | Runs periodic background tasks.                                        | Needs `@EnableScheduling`.                         |
+| **@RestControllerAdvice**                   | Global JSON-based exception handler for REST APIs.                     | Combines `@ControllerAdvice` + `@ResponseBody`.    |
+| **@ControllerAdvice**                       | Global handler for exceptions or cross-cutting logic.                  | Works with `@ExceptionHandler`.                    |
+| **@ExceptionHandler(Exception.class)**      | Handles specific exceptions locally or globally.                       | Returns custom response.                           |
+| **@ResponseStatus(HttpStatus.BAD_REQUEST)** | Defines HTTP status for custom exceptions.                             | Common for API validation errors.                  |
+| **@EnableConfigurationProperties**          | Binds YAML configs to POJOs annotated with `@ConfigurationProperties`. | Simplifies typed configuration.                    |
+| **@ConfigurationProperties(prefix="app")**  | Binds YAML properties to fields.                                       | Example: `app.url`, `app.timeout`.                 |
+| **@RestClientTest**                         | Auto-configures mock REST clients for tests.                           | For RestTemplate or WebClient testing.             |
+| **@DataJpaTest**                            | Configures in-memory DB for JPA testing.                               | Auto-rollbacks after tests.                        |
+| **@WebMvcTest**                             | Loads only web layer (controllers, filters).                           | Fast, isolated MVC tests.                          |
+| **@SpringBootTest**                         | Boots entire context for integration testing.                          | Heavier, full-system tests.                        |
+| **@MockBean**                               | Replaces a bean in the Spring context with a Mockito mock.             | Used in integration tests.                         |
+| **@TestConfiguration**                      | Test-specific bean overrides/config.                                   | Used inside test packages.                         |
+| **@ExtendWith(SpringExtension.class)**      | Integrates JUnit 5 with Spring testing.                                | Required for context injection.                    |
+| **@DisplayName("...")**                     | Describes test methods in JUnit 5 reports.                             | Improves readability.                              |
+| **@Import(ClassName.class)**                | Imports external configuration or bean definitions.                    | Useful in modular systems.                         |
+| **@EnableAutoConfiguration**                | Enables auto-config for Spring Boot apps.                              | Automatically configures beans based on classpath. |
+| **@EnableAspectJAutoProxy**                 | Enables AOP proxying for aspects.                                      | Required for `@Aspect`-based logging/security.     |
+| **@Aspect**                                 | Defines an Aspect for cross-cutting concerns.                          | Used with `@Before`, `@After`, `@Around`.          |
 
 ---
 
@@ -127,6 +173,19 @@ class GlobalHandler {
      return ResponseEntity.status(500)
        .body(Map.of("error", ex.getClass().getSimpleName(), "message", ex.getMessage()));
   }
+}
+
+```
+
+### Recovery Example
+
+```java
+@Retryable(value = IOException.class, maxAttempts = 3, backoff = @Backoff(delay = 1000))
+public String callExternalApi() { ... }
+
+@Recover
+public String recover(IOException ex) {
+    return "Fallback response";
 }
 ```
 
