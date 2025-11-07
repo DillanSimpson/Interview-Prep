@@ -47,25 +47,26 @@ list.stream()
 
 ## 🧩 **Data Structures & Use Cases**
 
-| Data Structure           | Time Complexity (Avg)                        | Pros                                    | Cons                                    | Ideal Use Cases                              |
-| ------------------------ | -------------------------------------------- | --------------------------------------- | --------------------------------------- | -------------------------------------------- |
-| **Array**                | Access: O(1) <br> Insert/Delete: O(n)        | Fast random access, cache friendly.     | Fixed size, costly resize.              | Static datasets, caching numeric data.       |
-| **ArrayList**            | Access: O(1) <br> Insert/Delete: O(n)        | Dynamic resizing, easy iteration.       | Slow insertion/removal mid-list.        | Ordered data, frequent reads.                |
-| **LinkedList**           | Access: O(n) <br> Insert/Delete: O(1) (ends) | Fast insert/delete at ends.             | High memory overhead, no random access. | Queues, job schedulers, undo stacks.         |
-| **HashMap**              | Access: O(1) <br> Worst: O(n)                | Fast key lookup, null keys supported.   | Unordered, not thread-safe.             | Caching, lookups, symbol tables.             |
-| **ConcurrentHashMap**    | Access: O(1)                                 | Thread-safe, concurrent reads/writes.   | Slightly higher memory use.             | Caches, rate-limiters, metrics tracking.     |
-| **TreeMap**              | Access: O(log n)                             | Sorted keys, navigable map features.    | Slower than HashMap.                    | Leaderboards, range queries, sorted configs. |
-| **HashSet**              | Access: O(1)                                 | Ensures unique elements.                | No ordering, not indexed.               | Membership checks, uniqueness enforcement.   |
-| **TreeSet**              | Access: O(log n)                             | Sorted unique set.                      | Slower insert/remove.                   | Sorted collections (tags, ranks).            |
-| **PriorityQueue (Heap)** | Insert/Delete: O(log n) <br> Peek: O(1)      | Efficient min/max retrieval.            | Not thread-safe.                        | Task scheduling, Dijkstra, throttling.       |
-| **Stack (Deque)**        | Push/Pop: O(1)                               | Simple LIFO.                            | Overuse → readability issues.           | Expression parsing, recursion emulation.     |
-| **Queue / Deque**        | Offer/Poll: O(1)                             | Thread-safe variants (`BlockingQueue`). | None major.                             | Producer-consumer, thread pools.             |
-| **LinkedHashMap**        | Access: O(1)                                 | Predictable order, easy LRU cache.      | Slightly slower than HashMap.           | LRU caching, recently-used history.          |
-| **CopyOnWriteArrayList** | Read: O(1), Write: O(n)                      | Safe concurrent reads.                  | Expensive writes.                       | Config lists, small read-mostly data.        |
-| **BlockingQueue**        | Offer/Poll: O(1)                             | Thread-safe, blocking behavior.         | Can block indefinitely.                 | Task queues, async pipelines.                |
-| **WeakHashMap**          | Access: O(1)                                 | Auto-clears when keys GC’d.             | Weak refs may vanish.                   | Cache for non-critical metadata.             |
-| **EnumMap**              | Access: O(1)                                 | Compact & fast for enum keys.           | Works only with enums.                  | Feature flags, enum-based lookup.            |
-| **BitSet**               | Access: O(1)                                 | Space-efficient booleans.               | Fixed size.                             | Flags, bitmap operations.                    |
+
+| Data Structure           | Time Complexity (Avg)                       | Pros                                    | Cons                                    | Ideal Use Cases                              |
+| ------------------------ | ------------------------------------------- | --------------------------------------- | --------------------------------------- | -------------------------------------------- |
+| **Array**                | Access: O(1)<br> Insert/Delete: O(n)        | Fast random access, cache friendly.     | Fixed size, costly resize.              | Static datasets, caching numeric data.       |
+| **ArrayList**            | Access: O(1)<br> Insert/Delete: O(n)        | Dynamic resizing, easy iteration.       | Slow insertion/removal mid-list.        | Ordered data, frequent reads.                |
+| **LinkedList**           | Access: O(n)<br> Insert/Delete: O(1) (ends) | Fast insert/delete at ends.             | High memory overhead, no random access. | Queues, job schedulers, undo stacks.         |
+| **HashMap**              | Access: O(1)<br> Worst: O(n)                | Fast key lookup, null keys supported.   | Unordered, not thread-safe.             | Caching, lookups, symbol tables.             |
+| **ConcurrentHashMap**    | Access: O(1)                                | Thread-safe, concurrent reads/writes.   | Slightly higher memory use.             | Caches, rate-limiters, metrics tracking.     |
+| **TreeMap**              | Access: O(log n)                            | Sorted keys, navigable map features.    | Slower than HashMap.                    | Leaderboards, range queries, sorted configs. |
+| **HashSet**              | Access: O(1)                                | Ensures unique elements.                | No ordering, not indexed.               | Membership checks, uniqueness enforcement.   |
+| **TreeSet**              | Access: O(log n)                            | Sorted unique set.                      | Slower insert/remove.                   | Sorted collections (tags, ranks).            |
+| **PriorityQueue (Heap)** | Insert/Delete: O(log n)<br> Peek: O(1)      | Efficient min/max retrieval.            | Not thread-safe.                        | Task scheduling, Dijkstra, throttling.       |
+| **Stack (Deque)**        | Push/Pop: O(1)                              | Simple LIFO.                            | Overuse → readability issues.          | Expression parsing, recursion emulation.     |
+| **Queue / Deque**        | Offer/Poll: O(1)                            | Thread-safe variants (`BlockingQueue`). | None major.                             | Producer-consumer, thread pools.             |
+| **LinkedHashMap**        | Access: O(1)                                | Predictable order, easy LRU cache.      | Slightly slower than HashMap.           | LRU caching, recently-used history.          |
+| **CopyOnWriteArrayList** | Read: O(1), Write: O(n)                     | Safe concurrent reads.                  | Expensive writes.                       | Config lists, small read-mostly data.        |
+| **BlockingQueue**        | Offer/Poll: O(1)                            | Thread-safe, blocking behavior.         | Can block indefinitely.                 | Task queues, async pipelines.                |
+| **WeakHashMap**          | Access: O(1)                                | Auto-clears when keys GC’d.            | Weak refs may vanish.                   | Cache for non-critical metadata.             |
+| **EnumMap**              | Access: O(1)                                | Compact & fast for enum keys.           | Works only with enums.                  | Feature flags, enum-based lookup.            |
+| **BitSet**               | Access: O(1)                                | Space-efficient booleans.               | Fixed size.                             | Flags, bitmap operations.                    |
 
 ---
 
@@ -93,25 +94,26 @@ list.stream()
 
 ### **Spring Boot Annotation Reference**
 
-| Annotation                            | Definition                                                                                     | Use Case                                                        | Notes                                                                                                                                          |
-| ------------------------------------- | ---------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| **@RestController**                   | Combines `@Controller` + `@ResponseBody`; marks a class as a REST endpoint returning JSON/XML. | Used for API endpoints.                                         | Automatically serializes return objects to HTTP response.                                                                                      |
-| **@Repository**                       | Indicates a persistence/DAO layer component.                                                   | Database access logic (JPA, JDBC, etc.).                        | Enables exception translation (e.g., converts SQL exceptions to `DataAccessException`).                                                        |
-| **@Value("\${property}")**            | Injects property values from configuration files (`application.yml` or `.properties`).         | Inject config variables like URLs, secrets.                     | Supports SpEL (Spring Expression Language).                                                                                                    |
-| **@DependsOn**                        | Forces bean initialization order                                                               | Static initializers/singletons that depend on global resources  | Ensuring Lifecycle Hooks Execute in Correct Order. Use when beans depend on other **@PostConstruct** methods, **@DependsOn** guarantees order. |
-| **@Transactional**                    | Defines transaction boundaries on methods or classes.                                          | Used for database operations that need rollback on failure.     | Supports propagation/isolation levels.                                                                                                         |
-| **@ControllerAdvice**                 | Global handler for exceptions or cross-cutting controller logic.                               | Centralizes error handling.                                     | Combine with `@ExceptionHandler`.                                                                                                              |
-| **@RestControllerAdvice**             | Same as above but automatically adds `@ResponseBody`.                                          | Consistent API error responses.                                 | Ideal for JSON error output.                                                                                                                   |
-| **@Cacheable("name")**                | Caches method return values based on parameters.                                               | Used to improve performance for read-heavy APIs.                | Combine with `@CacheEvict`, `@CachePut` for cache control.                                                                                     |
-| **@CacheEvict**                       | Removes entries from cache.                                                                    | After updates/deletes.                                          | Can clear all cache (`allEntries=true`).                                                                                                       |
-| **@Async**                            | Marks a method for asynchronous execution.                                                     | Offload long-running tasks (email, logs).                       | Requires `@EnableAsync`.                                                                                                                       |
-| **@Scheduled(cron="...")**            | Runs scheduled tasks periodically.                                                             | Background jobs, maintenance tasks.                             | Requires `@EnableScheduling`.                                                                                                                  |
-| **@Lazy**                             | Delays bean creation until first requested.                                                    | Improves startup time for heavy beans.                          | Use cautiously for dependencies.                                                                                                               |
-| **@Scope("prototype")**               | Creates a new bean instance on each injection.                                                 | For stateful or request-specific beans.                         | Default is singleton.                                                                                                                          |
-| **@ConditionalOnProperty**            | Enables a bean only if a property in config matches a condition.                               | Feature toggles (e.g., enable Redis caching only if flag=true). | Example: `@ConditionalOnProperty(name="feature.x", havingValue="true")`.                                                                       |
-| **@ConditionalOnMissingBean**         | Loads bean only if another bean of same type is not present.                                   | Override auto-config behavior.                                  | Common in library development.                                                                                                                 |
-| **@EnableConfigurationProperties**    | Enables property binding to POJOs with `@ConfigurationProperties`.                             | Bind YAML configs to objects.                                   | Simplifies config injection.                                                                                                                   |
-| **@RateLimiter** _(custom/3rd-party)_ | Limits number of method executions per time window.                                            | API rate limiting / abuse prevention.                           | Often from Resilience4j: `@RateLimiter(name="apiLimiter").                                                                                     |
+
+| Annotation                            | Definition                                                                                    | Use Case                                                        | Notes                                                                                                                                         |
+_| ------------------------------------- | --------------------------------------------------------------------------------------------- | --------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |_
+| **@RestController**                   | Combines`@Controller` + `@ResponseBody`; marks a class as a REST endpoint returning JSON/XML. | Used for API endpoints.                                         | Automatically serializes return objects to HTTP response.                                                                                     |
+| **@Repository**                       | Indicates a persistence/DAO layer component.                                                  | Database access logic (JPA, JDBC, etc.).                        | Enables exception translation (e.g., converts SQL exceptions to`DataAccessException`).                                                        |
+| **@Value("\${property}")**            | Injects property values from configuration files (`application.yml` or `.properties`).        | Inject config variables like URLs, secrets.                     | Supports SpEL (Spring Expression Language).                                                                                                   |
+| **@DependsOn**                        | Forces bean initialization order                                                              | Static initializers/singletons that depend on global resources  | Ensuring Lifecycle Hooks Execute in Correct Order. Use when beans depend on other**@PostConstruct** methods, **@DependsOn** guarantees order. |
+| **@Transactional**                    | Defines transaction boundaries on methods or classes.                                         | Used for database operations that need rollback on failure.     | Supports propagation/isolation levels.                                                                                                        |
+| **@ControllerAdvice**                 | Global handler for exceptions or cross-cutting controller logic.                              | Centralizes error handling.                                     | Combine with`@ExceptionHandler`.                                                                                                              |
+| **@RestControllerAdvice**             | Same as above but automatically adds`@ResponseBody`.                                          | Consistent API error responses.                                 | Ideal for JSON error output.                                                                                                                  |
+| **@Cacheable("name")**                | Caches method return values based on parameters.                                              | Used to improve performance for read-heavy APIs.                | Combine with`@CacheEvict`, `@CachePut` for cache control.                                                                                     |
+| **@CacheEvict**                       | Removes entries from cache.                                                                   | After updates/deletes.                                          | Can clear all cache (`allEntries=true`).                                                                                                      |
+| **@Async**                            | Marks a method for asynchronous execution.                                                    | Offload long-running tasks (email, logs).                       | Requires`@EnableAsync`.                                                                                                                       |
+| **@Scheduled(cron="...")**            | Runs scheduled tasks periodically.                                                            | Background jobs, maintenance tasks.                             | Requires`@EnableScheduling`.                                                                                                                  |
+| **@Lazy**                             | Delays bean creation until first requested.                                                   | Improves startup time for heavy beans.                          | Use cautiously for dependencies.                                                                                                              |
+| **@Scope("prototype")**               | Creates a new bean instance on each injection.                                                | For stateful or request-specific beans.                         | Default is singleton.                                                                                                                         |
+| **@ConditionalOnProperty**            | Enables a bean only if a property in config matches a condition.                              | Feature toggles (e.g., enable Redis caching only if flag=true). | Example:`@ConditionalOnProperty(name="feature.x", havingValue="true")`.                                                                       |
+| **@ConditionalOnMissingBean**         | Loads bean only if another bean of same type is not present.                                  | Override auto-config behavior.                                  | Common in library development.                                                                                                                |
+| **@EnableConfigurationProperties**    | Enables property binding to POJOs with`@ConfigurationProperties`.                             | Bind YAML configs to objects.                                   | Simplifies config injection.                                                                                                                  |
+| **@RateLimiter** _(custom/3rd-party)_ | Limits number of method executions per time window.                                           | API rate limiting / abuse prevention.                           | Often from Resilience4j: `@RateLimiter(name="apiLimiter").                                                                                    |
 
 ---
 
@@ -165,7 +167,6 @@ Prefer custom validators for complex inputs.
 
   - `@Test`, `@BeforeEach`, `@AfterEach`, `@DisplayName`.
   - Assertions: `assertEquals`, `assertThrows`.
-
 - Isolate business logic — avoid Spring context unless required.
 
 ```java
@@ -301,13 +302,14 @@ Axon can use **Kafka as a distributed event message broker**, so event processor
 
 ## 🧩 Core Concepts Mapping
 
+
 | Concept             | Axon                            | Kafka Equivalent               | Purpose                                       |
 | ------------------- | ------------------------------- | ------------------------------ | --------------------------------------------- |
 | **Command Bus**     | Direct point-to-point           | Not Kafka                      | Executes intent (creates/updates aggregate)   |
 | **Event Bus**       | Publish-subscribe               | Kafka topic                    | Distributes events to all interested handlers |
 | **Query Bus**       | Point-to-point / scatter-gather | Not Kafka                      | Fetches read model data                       |
 | **Event Processor** | Handles events                  | Kafka consumer group           | Subscribes to Kafka topics                    |
-| **Aggregate**       | Domain object root              | —                              | Source of truth that applies events           |
+| **Aggregate**       | Domain object root              | —                             | Source of truth that applies events           |
 | **Event Store**     | Axon Server / Kafka             | Kafka topic per aggregate type | Persists and replays events                   |
 
 ---
@@ -342,6 +344,7 @@ axon:
 
 Example:
 
+
 | Service                | Group ID                 | Effect                          |
 | ---------------------- | ------------------------ | ------------------------------- |
 | `payment-service`      | `payment-processor`      | Independent consumer            |
@@ -350,6 +353,7 @@ Example:
 ---
 
 ## 🧠 Key Topics & Event Flow
+
 
 | Topic Name         | Description                                                                                          |
 | ------------------ | ---------------------------------------------------------------------------------------------------- |
@@ -364,6 +368,7 @@ Example:
 
 Axon defines two main types:
 
+
 | Type                     | Processing                 | Use Case                          |
 | ------------------------ | -------------------------- | --------------------------------- |
 | **SubscribingProcessor** | Real-time (like in-memory) | Single-node or local event replay |
@@ -376,6 +381,7 @@ When using Kafka, Axon automatically configures **`TrackingEventProcessor`**, ba
 ---
 
 ## 🪄 Common Configs and Gotchas
+
 
 | Config                       | Meaning                                 | Tip                            |
 | ---------------------------- | --------------------------------------- | ------------------------------ |
@@ -417,6 +423,7 @@ public class OrderEventHandler {
 ---
 
 ## 🧮 Parallelism and Scaling
+
 
 | Concept            | Kafka Behavior                                                   |
 | ------------------ | ---------------------------------------------------------------- |
@@ -538,6 +545,7 @@ WHERE o.amount > 100;
 
 **Design Trade-Offs:**
 
+
 | Factor      | SQL           | NoSQL                   |
 | ----------- | ------------- | ----------------------- |
 | Schema      | Rigid         | Flexible                |
@@ -561,6 +569,7 @@ WHERE o.amount > 100;
 ---
 
 ## 🧪 **Security Testing & Vulnerability Management**
+
 
 | Type     | Tools                             | Detects                     |
 | -------- | --------------------------------- | --------------------------- |
@@ -667,10 +676,11 @@ Hash (SHA-256): 4ffba5659d30...
 
 ## ⚖️ Quick Comparison
 
+
 | Feature            | Encryption                            | Hashing                     |
 | ------------------ | ------------------------------------- | --------------------------- |
-| Reversible         | ✅ Yes                                 | ❌ No                        |
-| Uses a Key         | ✅ Yes                                 | ❌ No                        |
+| Reversible         | ✅ Yes                                | ❌ No                       |
+| Uses a Key         | ✅ Yes                                | ❌ No                       |
 | Primary Goal       | Confidentiality                       | Integrity / Authentication  |
 | Example Algorithms | AES, RSA                              | SHA-256, bcrypt             |
 | Output Size        | Variable                              | Fixed                       |
@@ -682,10 +692,8 @@ Hash (SHA-256): 4ffba5659d30...
 
 * **Never encrypt passwords.**
   Store password *hashes* using a **slow hashing algorithm** (`bcrypt`, `Argon2`) + salt.
-
 * **Encrypt sensitive data you must read back**, like:
   credit card numbers, personal info, or API keys.
-
 * **Use both together:**
 
   * Encrypt communication channels (TLS).
@@ -696,19 +704,21 @@ Hash (SHA-256): 4ffba5659d30...
 
 ## 🧠 **Security Use Cases (Interview Ready)**
 
+
 | Scenario                | Solution                                             |
 | ----------------------- | ---------------------------------------------------- |
 | Race condition in API   | Use synchronized block or distributed lock via Redis |
 | API abuse / brute force | Apply Redis rate limiting + CAPTCHA                  |
 | Sensitive logs          | Redact PII via logging filter                        |
 | DDoS attack             | Rate limiting + CDN caching                          |
-| Outdated dependency     | Automate SCA → ticket + patch                        |
+| Outdated dependency     | Automate SCA → ticket + patch                       |
 | File upload risk        | Validate MIME + antivirus (ClamAV)                   |
 | GC CPU spike            | Enable GC logs; analyze via GCeasy                   |
 
 ---
 
 ## Potential Code Problem
+
 ```java
   public int[] process(int[] balances, String[] transactions) {
       int[] updated = balances.clone();
