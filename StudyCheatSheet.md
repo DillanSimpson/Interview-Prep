@@ -35,6 +35,44 @@ list.stream()
     .collect(Collectors.groupingBy(User::getRole));
 ```
 
+### Composition vs Inheritance
+
+**Concepts**
+- **Composition:** “has-a” → build with smaller parts.
+- **Inheritance:** “is-a” → extend existing type.
+
+| Aspect | Composition | Inheritance |
+|--------|--------------|--------------|
+| Relationship | Has-a | Is-a |
+| Flexibility | High (runtime swap) | Low (compile-time) |
+| Coupling | Loose | Tight |
+| Encapsulation | Preserved | Often broken |
+| Reuse | Delegation | Base-class reuse |
+| Testing | Easy to mock | Complex |
+| Maintenance | Localized | Fragile |
+| Use When | Behavior changes often | Stable hierarchy |
+
+#### Pros / Cons
+
+* **Composition:** ✅ Modular, testable, flexible; ❌ Slightly more wiring, Can cause replication.
+* **Inheritance:** ✅ Simple reuse; ❌ Tight coupling, ripple bugs.
+
+**Tip:** Prefer composition unless the *is-a* relationship is clear and stable.
+
+#### Patterns
+
+* Composition → Strategy, Decorator, Adapter, Proxy  
+* Inheritance → Template Method, Abstract Base
+
+```java
+interface RiskScorer { int score(Transaction t); }
+class PaymentService {
+  private final RiskScorer scorer;
+  PaymentService(RiskScorer scorer) { this.scorer = scorer; }
+}
+```
+
+
 ### Reflection & Classloading
 
 * Use `Class.forName()`, `getDeclaredFields()`, `Method.invoke()` for dynamic inspection.
@@ -58,7 +96,7 @@ list.stream()
 | **ArrayList**  | Access: O(1), Insert/Delete: O(n) | Dynamic resize, good for reads. |
 | **LinkedList** | Access: O(n), Insert/Delete: O(1) | Fast at ends, high overhead.    |
 
-### Maps
+### 🗺️ Maps
 
 | Data Structure        | Avg. Time Complexity      | Typical Use / Notes                     |
 | --------------------- | ------------------------- | --------------------------------------- |
@@ -69,7 +107,7 @@ list.stream()
 | **WeakHashMap**       | Access: O(1)              | Auto-clears when keys are GC’d.         |
 | **EnumMap**           | Access: O(1)              | Optimized for enum keys.                |
 
-### Sets
+### 🔁 Sets
 
 | Data Structure | Avg. Time Complexity | Typical Use / Notes         |
 | -------------- | -------------------- | --------------------------- |
@@ -77,7 +115,7 @@ list.stream()
 | **TreeSet**    | Access: O(log n)     | Sorted unique elements.     |
 | **BitSet**     | Access: O(1)         | Space-efficient flags.      |
 
-### Queues & Stacks
+### 🧵 Queues & Stacks
 
 | Data Structure           | Avg. Time Complexity    | Typical Use / Notes         |
 | ------------------------ | ----------------------- | --------------------------- |
@@ -475,6 +513,233 @@ WHERE o.amount > 100;
 
 ---
 
+## 8) 🧠 Advanced Oracle SQL
+
+### ⚙️ EXPLAIN PLAN — Query Execution Blueprint
+
+#### What it does
+
+`EXPLAIN PLAN` shows how Oracle *plans* to execute a SQL statement — what indexes, joins, and access paths it will use.
+
+```sql
+EXPLAIN PLAN FOR
+SELECT e.name, d.dept_name
+FROM employees e
+JOIN departments d ON e.dept_id = d.dept_id
+WHERE e.salary > 100000;
+
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
+```
+
+#### Key Columns in Plan Output
+
+| Column                       | Meaning                                            |
+| ---------------------------- | -------------------------------------------------- |
+| **Operation**                | Step performed (TABLE ACCESS, NESTED LOOPS, etc.)  |
+| **Options**                  | Details of operation (FULL, INDEX, BY ROWID, etc.) |
+| **Object Name**              | Table or index being accessed                      |
+| **Rows**                     | Estimated number of rows returned                  |
+| **Cost**                     | Oracle’s internal cost estimate (lower = better)   |
+| **Cardinality**              | Estimated number of rows output at that stage      |
+| **Bytes**                    | Estimated data size                                |
+| **Filter/Access Predicates** | Conditions applied at that stage                   |
+
+### Typical Access Paths
+
+| Path                      | Description                    | Use When                              |
+| ------------------------- | ------------------------------ | ------------------------------------- |
+| **FULL TABLE SCAN**       | Reads every block              | Small tables or no usable index       |
+| **INDEX RANGE SCAN**      | Uses index for range/filter    | Index on `WHERE` columns              |
+| **INDEX UNIQUE SCAN**     | For unique key lookups         | PK or unique constraint               |
+| **INDEX FULL SCAN**       | Reads all entries in index     | Query can be satisfied by index alone |
+| **TABLE ACCESS BY ROWID** | Fetch row from table via index | Common after index scan               |
+
+---
+
+### 🧩 Join Methods in Execution Plans
+
+| Method             | Description                                           | Best For                          |
+| ------------------ | ----------------------------------------------------- | --------------------------------- |
+| **NESTED LOOPS**   | For each row in outer table, find matches in inner    | Small outer set + indexed inner   |
+| **HASH JOIN**      | Build hash table for smaller table, probe with larger | Large joins without indexes       |
+| **MERGE JOIN**     | Both inputs sorted; merge results                     | Large, pre-sorted datasets        |
+| **CARTESIAN JOIN** | Every row joined with every other                     | Red flag — missing `ON` condition |
+
+---
+
+### 📊DBMS_XPLAN Views
+
+```sql
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR(NULL, NULL, 'ALLSTATS LAST'));
+```
+
+**`DISPLAY_CURSOR`** shows *actual* runtime stats (requires `GATHER_PLAN_STATISTICS`).
+
+```sql
+ALTER SESSION SET statistics_level = ALL;
+
+SELECT /*+ gather_plan_statistics */ ...
+FROM orders o JOIN customers c ON o.cid = c.cid;
+
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR(NULL, NULL, 'ALLSTATS LAST'));
+```
+
+Look for:
+
+* **A-Rows** = actual rows processed
+* **E-Rows** = estimated rows
+  If A ≫ E → poor cardinality estimate (gather stats!).
+
+---
+
+### 🧮 Optimizer Hints
+
+Hints override Oracle’s cost-based optimizer decisions.
+
+| Hint                             | Description           |
+| -------------------------------- | --------------------- |
+| `/*+ INDEX(table index_name) */` | Force index usage     |
+| `/*+ FULL(table) */`             | Force full table scan |
+| `/*+ USE_HASH(t1 t2) */`         | Use hash join         |
+| `/*+ USE_NL(t1 t2) */`           | Use nested loop join  |
+| `/*+ PARALLEL(table, 4) */`      | Parallelize query     |
+| `/*+ LEADING(table) */`          | Force join order      |
+
+***Example***
+
+```sql
+SELECT /*+ USE_HASH(e d) PARALLEL(e 4) */ 
+  e.emp_id, d.dept_name
+FROM employees e, departments d
+WHERE e.dept_id = d.dept_id;
+```
+
+---
+
+### 📈 Indexing Strategies
+
+#### Types of Indexes
+
+| Type                           | Description                    | Use Case                                     |
+| ------------------------------ | ------------------------------ | -------------------------------------------- |
+| **B-Tree**                     | Default balanced tree index    | High-selectivity columns                     |
+| **Bitmap**                     | Bit arrays for distinct values | Low-cardinality columns (e.g., gender)       |
+| **Function-Based**             | Index on computed value        | `UPPER(name)`, `TRUNC(date)`                 |
+| **Composite**                  | Multiple columns               | When queries use left-most prefix            |
+| **Reverse Key**                | Reverses index bytes           | Avoids index hot spots for sequential keys   |
+| **Global / Local Partitioned** | Index for partitioned tables   | Use local when partitions queried separately |
+
+---
+
+### 🧮 Partitioning
+
+| Type          | Description                     | Use When                  |
+| ------------- | ------------------------------- | ------------------------- |
+| **Range**     | Partition by numeric/date range | e.g., orders by month     |
+| **List**      | Discrete values                 | Region, country           |
+| **Hash**      | Distribute evenly by hash       | Load balancing            |
+| **Composite** | Mix range + hash                | Range by date, hash by ID |
+
+```sql
+CREATE TABLE sales (
+  sale_id NUMBER,
+  sale_date DATE,
+  amount NUMBER
+)
+PARTITION BY RANGE (sale_date)
+(
+  PARTITION p_2024 VALUES LESS THAN (TO_DATE('2025-01-01','YYYY-MM-DD'))
+);
+```
+
+---
+
+### ⚙️ Query Optimization & Tuning
+
+#### Checklist
+
+1. **Gather statistics**
+
+   ```sql
+   EXEC DBMS_STATS.GATHER_TABLE_STATS('SCHEMA','TABLE');
+   ```
+2. **Eliminate unnecessary DISTINCT / GROUP BY**
+3. **Avoid functions on indexed columns**
+
+   ```sql
+   -- Bad
+   WHERE UPPER(name) = 'JOHN'
+   -- Good
+   WHERE name = INITCAP('john')
+   ```
+4. **Use EXISTS instead of IN** for correlated subqueries.
+5. **Use bind variables** (`:param`) for reusable execution plans.
+6. **Materialize heavy subqueries** with **CTE or temp tables**.
+7. **Partition pruning:** filter on partition key.
+8. **Use proper join order:** small → large table.
+
+---
+
+### 🧰 Dynamic Performance Views
+
+| View                       | Description                        |
+| -------------------------- | ---------------------------------- |
+| `V$SQL`                    | SQL text, parse calls, executions  |
+| `V$SQL_PLAN`               | Execution plan for cached SQL      |
+| `V$SESSION_LONGOPS`        | Track long-running ops             |
+| `V$SEGMENT_STATISTICS`     | Object-level I/O stats             |
+| `V$SQLAREA`                | Aggregated SQL stats (shared pool) |
+| `V$ACTIVE_SESSION_HISTORY` | Wait events & bottlenecks          |
+
+---
+
+### 🔍 Profiling Queries
+
+```sql
+SET AUTOTRACE ON
+SELECT COUNT(*) FROM orders WHERE status='SHIPPED';
+SET AUTOTRACE OFF;
+```
+
+Shows both result and execution plan.
+
+Or:
+
+```sql
+SELECT SQL_ID, ELAPSED_TIME, CPU_TIME, DISK_READS
+FROM V$SQL
+WHERE SQL_TEXT LIKE '%ORDERS%';
+```
+
+---
+
+### 🧩 Common Bottlenecks & Fixes
+
+| Symptom              | Likely Cause                 | Remedy                                   |
+| -------------------- | ---------------------------- | ---------------------------------------- |
+| Full table scan      | Missing/unused index         | Add or hint index                        |
+| High I/O waits       | Unselective predicates       | Filter earlier, partition                |
+| CPU-bound sort       | Unnecessary ORDER BY         | Remove or pre-sort                       |
+| Cardinality mismatch | Stale stats                  | Gather fresh stats                       |
+| Temp usage spikes    | Large joins or sorts         | Increase `TEMP` tablespace / add indexes |
+| Row chaining         | Long rows / small block size | Rebuild table with PCTFREE adjustment    |
+
+---
+
+### ⚡ Real-World Tip
+
+If your plan looks *good* but performance isn’t —
+run with:
+
+```sql
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR(NULL, NULL, 'ALLSTATS LAST +PEEKED_BINDS'));
+```
+
+This shows the *actual* bind variables Oracle saw, which can drastically change plan selection.
+
+---
+
 ## 8) 🔐 Security
 
 ### Spring Security (AuthN/Z)
@@ -561,22 +826,6 @@ SecurityFilterChain security(HttpSecurity http) throws Exception {
 
 ---
 
-## 11) ⚙️ Design Patterns (Security & System Context)
-
-* **Singleton:** Central `SecurityConfig`, connection pool.
-* **Factory:** Crypto algorithms, JWT parser.
-* **Strategy:** Switch authentication/hash strategies (BCrypt ↔ Argon2).
-* **Decorator:** Add logging, metrics, or auditing layers.
-* **Observer:** Event notification to SIEM/monitoring.
-* **Proxy:** API gateway enforcing auth & throttling.
-* **Chain of Responsibility:** Servlet filters → validation → authorization.
-
----
-
-Absolutely—here’s an add-on you can drop straight into your GitHub Markdown. It keeps things compact, interview-ready, and GitHub-renderable (uses Mermaid for the diagram).
-
----
-
 ## 🧩 Design Patterns — Quick Ref (Java/Spring)
 
 | Pattern                     | When to Use                                       | One-liner Example                                                  |
@@ -648,9 +897,19 @@ class CompositeRules implements Rule {
 }
 ```
 
+## ⚙️ Design Patterns (Security & System Context)
+
+* **Singleton:** Central `SecurityConfig`, connection pool.
+* **Factory:** Crypto algorithms, JWT parser.
+* **Strategy:** Switch authentication/hash strategies (BCrypt ↔ Argon2).
+* **Decorator:** Add logging, metrics, or auditing layers.
+* **Observer:** Event notification to SIEM/monitoring.
+* **Proxy:** API gateway enforcing auth & throttling.
+* **Chain of Responsibility:** Servlet filters → validation → authorization.
+
 ---
 
-## 🗺️ Microservices System Diagram (Mermaid)
+## 🗺️ Microservices System Diagram
 
 ```mermaid
 flowchart LR
@@ -721,7 +980,6 @@ flowchart LR
 * **Security/PCI:** Payment service isolated with PCI boundary; tokens and blacklists in Redis; tracing/metrics via OTel/Prometheus.
 
 ---
-
 
 ## 9) 🧪 Testing — TDD, BDD & Frameworks
 
