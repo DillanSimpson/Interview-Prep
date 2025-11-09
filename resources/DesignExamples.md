@@ -84,7 +84,7 @@ class EmployeeController {
 }
 ```
 
-## 2) **design a distributed, scalable application**
+## 2) **Design a distributed, scalable application**
 
 Think **stateless services + smart data layer + async + observability + resilience**.
 

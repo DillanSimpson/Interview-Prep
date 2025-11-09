@@ -413,6 +413,55 @@ server {
 
 * **Stateless services**, **externalized config** (Config/Vault), **service discovery** (Eureka/Consul/K8s), **Resilience4j**, **Micrometer→Prometheus/Grafana**, **12-factor** principles.
 
+### Cloud Design & Tools
+
+#### Pagination — dividing *results for humans or clients*
+
+Pagination is about **presenting data in manageable chunks** to users or client programs.
+If you have 10 million transactions in a database, you don’t want to return them all at once. Instead, you serve them in *pages*:
+
+* Page 1: items 1–100
+* Page 2: items 101–200
+* …and so on.
+
+It’s a client-side or API-level concept — purely about *display* or *data access patterns*, not where data lives.
+
+#### Load Balancing — dividing *traffic for fairness and speed*
+
+Load balancing spreads **incoming requests or workloads** across multiple servers or nodes so none gets overwhelmed.
+Imagine five identical web servers behind a load balancer. When traffic arrives:
+
+* The balancer sends request 1 to server A,
+* request 2 to server B,
+* request 3 to server C, etc.
+
+The goal is to prevent bottlenecks and improve reliability — if one node fails, the balancer routes around it.
+It doesn’t care which *data* lives where; it just wants to keep all workers busy and responsive.
+
+#### Partitioning — dividing *data for scalability and parallelism*
+
+Partitioning (also called *sharding*) splits the **actual dataset** across multiple machines.
+Each node holds a subset of the total data — say, transactions by customer ID, or by region.
+
+For example:
+
+* Node 1 stores customers A–M
+* Node 2 stores customers N–Z
+
+This makes reads and writes faster and lets you scale horizontally. It’s how distributed databases and in-memory grids (like Geode or Cassandra) handle huge datasets that can’t fit on one machine.
+
+#### Quick summary analogy
+
+| Concept | Divides | Why | Example |
+|:-|:----|:------|:------|
+| Pagination | A *response* | To make results digestible | Show 20 search results per page  |
+| Load balancing | *Requests* | To share traffic and avoid overload | Route HTTP requests among servers |
+| Partitioning | The *data itself* | To scale storage and processing | Store customers A–M on one node, N–Z on another |
+
+Pagination organizes how you **see** data,
+load balancing organizes how you **send** work,
+and partitioning organizes how you **store** data.
+
 ### Kubernetes & Cloud Security
 
 * **Pods/Deployments**, Services (`ClusterIP/NodePort/LoadBalancer`).
