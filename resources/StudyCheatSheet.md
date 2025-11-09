@@ -72,7 +72,6 @@ class PaymentService {
 }
 ```
 
-
 ### Reflection & Classloading
 
 * Use `Class.forName()`, `getDeclaredFields()`, `Method.invoke()` for dynamic inspection.
@@ -83,6 +82,75 @@ class PaymentService {
 
 * Use **custom exceptions** for API-level granularity.
 * Favor **immutable objects** (`final` fields, no setters) to avoid race conditions.
+
+### Checked Vs Uncehcked Exceptions
+
+* **Checked exceptions** represent conditions you are *expected to handle* in your code.
+* **Unchecked exceptions** (runtime exceptions) represent *programming errors* you are not required to catch.
+
+---
+
+## 🧩 1. Checked Exceptions
+
+**Examples:** `IOException`, `SQLException`, `FileNotFoundException`, `ClassNotFoundException`
+
+* These are **checked at compile time**.
+* The compiler **forces** you to handle them using `try-catch` or declare them with `throws`.
+* They usually represent **recoverable conditions** — something external went wrong that you can potentially fix or report gracefully.
+
+**Example:**
+
+```java
+try {
+    FileReader file = new FileReader("data.txt"); // may throw FileNotFoundException
+    file.read();
+} catch (IOException e) {
+    System.out.println("File error: " + e.getMessage());
+}
+```
+
+### ⚡ 2. Unchecked Exceptions
+
+**Examples:** `NullPointerException`, `ArithmeticException`, `ArrayIndexOutOfBoundsException`, `IllegalArgumentException`
+
+* Subclasses of `RuntimeException`
+* **Not checked at compile time** — compiler doesn’t force you to catch or declare them.
+* Represent **programming logic errors**, not external issues.
+* Usually not recoverable at runtime; you fix your code instead of catching them.
+
+**Example:**
+
+```java
+int a = 10 / 0;  // throws ArithmeticException at runtime
+```
+
+### 🧠 3. Custom exceptions
+
+You can make your own:
+
+```java
+// Checked
+class MyCheckedException extends Exception { }
+
+// Unchecked
+class MyUncheckedException extends RuntimeException { }
+```
+
+Use a **checked** exception if callers *should* handle the issue (like validation or resource unavailability).
+Use **unchecked** if it’s a programming misuse (like invalid arguments).
+
+| Type | Superclass | Checked at Compile? | Typical Use | Example |
+| :---- | :-- | :- | :-- | :-------- |
+| **Checked** | `java.lang.Exception` (not RuntimeException) | ✅ Yes | Recoverable, external | `IOException`, `SQLException` |
+| **Unchecked** | `java.lang.RuntimeException` | ❌ No | Logic/programming error | `NullPointerException`, `ArithmeticException` |
+
+
+---
+
+In interviews, a crisp closing line works:
+
+> “Checked exceptions represent expected, recoverable problems that must be handled or declared. Unchecked exceptions represent programming errors — the compiler ignores them because they usually indicate logic issues, not recoverable states.”
+
 
 ---
 
@@ -137,7 +205,9 @@ class PaymentService {
 * **DTO:** Transfer objects, decoupled from persistence.
 * **Validation:** `@Valid`, `@NotNull`, `@Pattern` via `spring-boot-starter-validation`.
 
-### Annotation Reference
+### Spring Annotation Cheat Sheet
+
+#### 🧭 General Framework / Bootstrapping
 
 | Annotation | Purpose / Use Case | Notes |
 |:-----------|:-------------------|:------|
@@ -160,11 +230,72 @@ class PaymentService {
 | **@RateLimiter**, **@CircuitBreaker**, **@Bulkhead** | Limits/trips/isolates calls. | From *Resilience4j*. |
 | **@Async** | Runs async methods. | Needs `@EnableAsync`. |
 | **@Scheduled(cron="...")** | Periodic background tasks. | Needs `@EnableScheduling`. |
-| **@RestControllerAdvice**<br>**@ControllerAdvice**<br>**@ExceptionHandler** | Global or targeted exception handling. | JSON responses for REST APIs. |
+| **@RestControllerAdvice**, **@ControllerAdvice**, **@ExceptionHandler** | Global or targeted exception handling. | JSON responses for REST APIs. |
 | **@ResponseStatus** | Maps exceptions to HTTP codes. | Use for validation errors. |
-| **@EnableConfigurationProperties**<br>**@ConfigurationProperties** | Binds YAML props to POJOs. | Example: `prefix="app"`. |
-| **@RestClientTest**, **@DataJpaTest**,<br>**@WebMvcTest**, **@SpringBootTest**, **@MockBean**, **@TestConfiguration**, **@ExtendWith**, **@DisplayName** | Test scaffolding annotations. | Scope context for speed. |
+| **@EnableConfigurationProperties**, **@ConfigurationProperties** | Binds YAML props to POJOs. | Example: `prefix="app"`. |
+| **@RestClientTest**, **@DataJpaTest**, **@WebMvcTest**, **@SpringBootTest**, **@MockBean**, **@TestConfiguration**, **@ExtendWith**, **@DisplayName** | Test scaffolding annotations. | Scope context for speed. |
 | **@EnableAutoConfiguration**, **@EnableAspectJAutoProxy**, **@Aspect** | Bootstrapping / AOP setup. | For cross-cutting concerns. |
+
+---
+
+### 🧩 Core Dependency Injection Annotations
+
+| Annotation | Purpose / Use Case | Notes |
+|:-----------|:-------------------|:------|
+| **@Autowired** | Injects a bean automatically by type. | Works on constructors, setters, or fields. |
+| **@Qualifier("beanName")** | Specifies which bean to inject when multiple candidates exist. | Often used with `@Autowired`. |
+| **@Primary** | Marks a bean as the default when multiple candidates exist. | Overridden by `@Qualifier`. |
+| **@Resource(name="beanName")** | JSR-250 standard annotation; injects by name. | Alternative to `@Autowired`. |
+| **@Inject** | JSR-330 standard equivalent of `@Autowired`. | Lacks `required=false` option. |
+| **@Lookup** | Injects prototype-scoped beans into singletons. | Spring generates method implementations dynamically. |
+| **@Component** | Marks a class as a Spring-managed bean. | The base stereotype for `@Service`, `@Repository`, etc. |
+| **@ComponentScan(basePackages = "...")** | Tells Spring where to find annotated components. | Used with `@Configuration`. |
+| **@Import(ConfigClass.class)** | Brings in other configuration classes. | Useful for modular setups. |
+| **@Order(n)** | Sets priority when multiple beans implement the same interface. | Lower values = higher priority. |
+
+---
+
+### ⚙️ Configuration & Environment Annotations
+
+| Annotation | Purpose / Use Case | Notes |
+|:-----------|:-------------------|:------|
+| **@ConfigurationProperties(prefix = "app")** | Binds externalized config (YAML/properties) to a POJO. | Requires a getter/setter or record-style object. |
+| **@EnableConfigurationProperties(MyProps.class)** | Registers `@ConfigurationProperties` beans explicitly. | Usually unnecessary if class is already a component. |
+| **@PropertySource("classpath:custom.properties")** | Loads additional `.properties` files into the Environment. | Works only with `.properties`, not YAML. |
+| **@Value("${property.name}")** | Injects a single config value. | Supports SpEL with `#{}` syntax. |
+| **@Profile("dev")** | Activates a bean/config only for a specific environment. | Combine with `spring.profiles.active`. |
+| **Environment** *(interface)* | Programmatic access to environment variables and property sources. | Inject with `@Autowired` or constructor. |
+| **@ConfigurationPropertiesScan** | Automatically scans for `@ConfigurationProperties` classes. | Alternative to manual registration. |
+| **@ConditionalOnProperty** | Loads config or beans only if a property matches a value. | Common for feature flags. |
+| **@ConditionalOnExpression** | Activates a bean when a SpEL expression evaluates to true. | Example: `@ConditionalOnExpression("'${env}' == 'prod'")`. |
+| **@ActiveProfiles("test")** *(in tests)* | Sets profile for integration tests. | Works with JUnit + `@SpringBootTest`. |
+
+---
+
+### 🔮 Aspect-Oriented Programming (AOP) Annotations
+
+| Annotation | Purpose / Use Case | Notes |
+|:-----------|:-------------------|:------|
+| **@Aspect** | Marks a class as an Aspect (cross-cutting logic). | Combine with `@EnableAspectJAutoProxy`. |
+| **@Before("pointcut")** | Run advice before target method execution. | Often used for logging or validation. |
+| **@After("pointcut")** | Run advice after method execution (regardless of outcome). | Similar to `finally` in try-catch. |
+| **@AfterReturning(pointcut="...", returning="var")** | Executes after successful completion of method. | Can access return value. |
+| **@AfterThrowing(pointcut="...", throwing="ex")** | Executes only if method throws an exception. | Ideal for error logging. |
+| **@Around("pointcut")** | Wraps target method; allows custom pre/post logic. | Must return the result of `proceed()`. |
+| **@Pointcut("execution(...)")** | Defines reusable join point expressions. | Helps organize advice neatly. |
+
+---
+
+#### AOP Concepts
+
+1. Aspect: An Aspect is a modular unit of cross-cutting concerns. For example, a logging aspect can be applied across various methods in different classes.
+2. Advice: This is the action taken by an aspect at a particular join point. There are five types of advice:
+
+* Before: Executed before the method call.
+* After: Executed after the method call, regardless of its outcome.
+* AfterReturning: Executed after the method returns a result, but not if an exception occurs.
+* Around: Surrounds the method execution, allowing you to control the method execution and its result.
+* AfterThrowing: Executed if the method throws an exception.
 
 #### Error Handling
 
@@ -478,6 +609,76 @@ class User {
 ```
 
 * Lazy vs eager: prefer **LAZY** to avoid large graphs.
+
+#### ACID principles
+
+* four fundamental properties that guarantee **reliable and consistent transactions** in a database system.
+* They ensure that even when something goes wrong — crashes, power failures, concurrent access — the data remains correct and trustworthy.
+
+## ⚙️ What ACID stands for
+
+| Property | Meaning | Ensures |
+| :------- | :------ | :-- |
+| **A — Atomicity**   | All or nothing | No partial transactions   |
+| **C — Consistency** | Valid state transitions | Data integrity maintained |
+| **I — Isolation** | Transactions don’t interfere | Correct results under concurrency |
+| **D — Durability**  | Results survive failures | Data safely persisted |
+
+---
+
+## 🔹 A — Atomicity (“All or nothing”)
+
+A transaction must **complete fully** or **not at all**.
+If any operation fails, the database rolls back to the previous consistent state.
+
+**Example:**
+Transferring ₹100 from Account A → Account B involves two steps:
+
+1. Debit A (–100)
+2. Credit B (+100)
+
+If step 2 fails, step 1 must **not persist** — otherwise money disappears.
+
+**Mechanism:** rollback logs, undo segments, transactional boundaries.
+
+## 🔹 C — Consistency (“Valid → valid”)
+
+A transaction must bring the database **from one valid state to another valid state** — adhering to constraints, triggers, and business rules.
+
+**Example:**
+If a balance must never be negative, the DB will reject or roll back any transaction that violates that rule.
+
+**Mechanism:** constraints, foreign keys, triggers, check constraints.
+
+## 🔹 I — Isolation (“Transactions don’t step on each other”)
+
+Concurrent transactions must behave **as if executed one at a time**, even though they may run in parallel.
+
+**Example:**
+Two users booking the last flight seat simultaneously — only one succeeds; the other must see the updated state afterward.
+
+**Mechanism:** transaction isolation levels —
+`READ UNCOMMITTED`, `READ COMMITTED`, `REPEATABLE READ`, `SERIALIZABLE`.
+
+Higher isolation = fewer concurrency anomalies (but more locking and less performance).
+
+## 🔹 D — Durability (“Once committed, forever saved”)
+
+Once a transaction commits, its effects **must not be lost**, even if the system crashes right after.
+
+**Example:**
+After you transfer money and get a “Transaction Successful” message, that change must survive power loss or server restart.
+
+**Mechanism:** write-ahead logs (WAL), journaling, checkpoints, replication.
+
+## 💡 Quick summary analogy
+
+Imagine you’re writing a bank transaction on a whiteboard:
+
+* **Atomicity:** Either you finish both debit & credit, or erase everything.
+* **Consistency:** The total money in the system stays the same.
+* **Isolation:** Only one person writes at a time, no overlapping edits.
+* **Durability:** Once written, it’s copied to permanent storage.
 
 **Query Optimization**
 
@@ -1022,48 +1223,3 @@ Then response status is 200
 ```
 
 ---
-
-## 10) 🧪 Coding Exercise (Transactions)
-
-```java
-public int[] process(int[] balances, String[] transactions) {
-    int[] updated = balances.clone();
-
-    for (String txn : transactions) {
-        String[] parts = txn.split(" ");
-        String type = parts[0].toLowerCase();
-
-        switch (type) {
-            case "deposit": {
-                int account = Integer.parseInt(parts[1]) - 1;
-                int amount = Integer.parseInt(parts[2]);
-                updated[account] += amount;
-                break;
-            }
-            case "withdraw": {
-                int account = Integer.parseInt(parts[1]) - 1;
-                int amount = Integer.parseInt(parts[2]);
-                if (updated[account] < amount) {
-                    return new int[]{account + 1, -1};
-                }
-                updated[account] -= amount;
-                break;
-            }
-            case "transfer": {
-                int from = Integer.parseInt(parts[1]) - 1;
-                int to = Integer.parseInt(parts[2]) - 1;
-                int amount = Integer.parseInt(parts[3]);
-                if (updated[from] < amount) {
-                    return new int[]{from + 1, -1};
-                }
-                updated[from] -= amount;
-                updated[to] += amount;
-                break;
-            }
-            default:
-                System.out.println("Invalid transaction type: " + type);
-        }
-    }
-    return updated;
-}
-```
