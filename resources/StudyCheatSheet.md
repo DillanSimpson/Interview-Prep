@@ -236,8 +236,6 @@ In interviews, a crisp closing line works:
 | **@RestClientTest**, **@DataJpaTest**, **@WebMvcTest**, **@SpringBootTest**, **@MockBean**, **@TestConfiguration**, **@ExtendWith**, **@DisplayName** | Test scaffolding annotations. | Scope context for speed. |
 | **@EnableAutoConfiguration**, **@EnableAspectJAutoProxy**, **@Aspect** | Bootstrapping / AOP setup. | For cross-cutting concerns. |
 
----
-
 ### 🧩 Core Dependency Injection Annotations
 
 | Annotation | Purpose / Use Case | Notes |
@@ -252,8 +250,6 @@ In interviews, a crisp closing line works:
 | **@ComponentScan(basePackages = "...")** | Tells Spring where to find annotated components. | Used with `@Configuration`. |
 | **@Import(ConfigClass.class)** | Brings in other configuration classes. | Useful for modular setups. |
 | **@Order(n)** | Sets priority when multiple beans implement the same interface. | Lower values = higher priority. |
-
----
 
 ### ⚙️ Configuration & Environment Annotations
 
@@ -270,8 +266,6 @@ In interviews, a crisp closing line works:
 | **@ConditionalOnExpression** | Activates a bean when a SpEL expression evaluates to true. | Example: `@ConditionalOnExpression("'${env}' == 'prod'")`. |
 | **@ActiveProfiles("test")** *(in tests)* | Sets profile for integration tests. | Works with JUnit + `@SpringBootTest`. |
 
----
-
 ### 🔮 Aspect-Oriented Programming (AOP) Annotations
 
 | Annotation | Purpose / Use Case | Notes |
@@ -284,9 +278,7 @@ In interviews, a crisp closing line works:
 | **@Around("pointcut")** | Wraps target method; allows custom pre/post logic. | Must return the result of `proceed()`. |
 | **@Pointcut("execution(...)")** | Defines reusable join point expressions. | Helps organize advice neatly. |
 
----
-
-#### AOP Concepts
+### AOP Concepts
 
 1. Aspect: An Aspect is a modular unit of cross-cutting concerns. For example, a logging aspect can be applied across various methods in different classes.
 2. Advice: This is the action taken by an aspect at a particular join point. There are five types of advice:
@@ -297,7 +289,7 @@ In interviews, a crisp closing line works:
 * Around: Surrounds the method execution, allowing you to control the method execution and its result.
 * AfterThrowing: Executed if the method throws an exception.
 
-#### Error Handling
+### Error Handling
 
 ```java
 @ControllerAdvice
@@ -310,7 +302,7 @@ class GlobalHandler {
 }
 ```
 
-#### Retry & Recovery
+### Retry & Recovery
 
 ```java
 @Retryable(value = IOException.class, maxAttempts = 3, backoff = @Backoff(delay = 1000))
@@ -333,7 +325,7 @@ public String recover(IOException ex) { return "Fallback response"; }
 public User findById(Long id) { return repo.findById(id).orElseThrow(); }
 ```
 
-#### Performance & Resilience
+### Performance & Resilience
 
 * **Resilience4j:** circuit breakers, retries, bulkheads.
 * **@Async + TaskExecutor:** async workloads.
@@ -352,6 +344,19 @@ public User findById(Long id) { return repo.findById(id).orElseThrow(); }
       // Your async logic here
   }
   ```
+
+### SOLID principles
+
+The `SOLID` principles are five timeless guidelines for writing clean, maintainable, and extensible object-oriented software. They act as design guardrails—helping you avoid spaghetti code and “god classes.”
+
+| Principle | Key idea | Benefit |
+| :--| :- | :- |
+| **S** — Single Responsibility | One class = one job | Easier maintenance |
+| **O** — Open/Closed | Extend, don’t modify | Flexible & safe changes |
+| **L** — Liskov Substitution | Subclasses honor contracts | Reliable polymorphism |
+| **I** — Interface Segregation | Small interfaces | Less coupling |
+| **D** — Dependency Inversion | Depend on abstractions | Easier testing & decoupling |
+
 ---
 
 ## 4) 🧰 REST API & Microservices Design
@@ -397,7 +402,7 @@ server {
 }
 ```
 
-### Cloud Ecosystems (Private vs Public)
+## ☁️ Cloud Ecosystems (Private vs Public)
 
 **Public (AWS/Azure/GCP):** EKS/AKS/GKE, RDS/Dynamo/Cosmos, S3/Blob/GCS, CloudWatch/Monitor/Stackdriver.
 **Advantages:** scalability, elasticity, managed services.
@@ -413,9 +418,9 @@ server {
 
 * **Stateless services**, **externalized config** (Config/Vault), **service discovery** (Eureka/Consul/K8s), **Resilience4j**, **Micrometer→Prometheus/Grafana**, **12-factor** principles.
 
-### Cloud Design & Tools
+## Cloud Design & Tools
 
-#### Pagination — dividing *results for humans or clients*
+### 1. Pagination — dividing *results for humans or clients*
 
 Pagination is about **presenting data in manageable chunks** to users or client programs.
 If you have 10 million transactions in a database, you don’t want to return them all at once. Instead, you serve them in *pages*:
@@ -426,7 +431,7 @@ If you have 10 million transactions in a database, you don’t want to return th
 
 It’s a client-side or API-level concept — purely about *display* or *data access patterns*, not where data lives.
 
-#### Load Balancing — dividing *traffic for fairness and speed*
+### 2. Load Balancing — dividing *traffic for fairness and speed*
 
 Load balancing spreads **incoming requests or workloads** across multiple servers or nodes so none gets overwhelmed.
 Imagine five identical web servers behind a load balancer. When traffic arrives:
@@ -438,7 +443,7 @@ Imagine five identical web servers behind a load balancer. When traffic arrives:
 The goal is to prevent bottlenecks and improve reliability — if one node fails, the balancer routes around it.
 It doesn’t care which *data* lives where; it just wants to keep all workers busy and responsive.
 
-#### Partitioning — dividing *data for scalability and parallelism*
+### 3. Partitioning — dividing *data for scalability and parallelism*
 
 Partitioning (also called *sharding*) splits the **actual dataset** across multiple machines.
 Each node holds a subset of the total data — say, transactions by customer ID, or by region.
@@ -450,7 +455,7 @@ For example:
 
 This makes reads and writes faster and lets you scale horizontally. It’s how distributed databases and in-memory grids (like Geode or Cassandra) handle huge datasets that can’t fit on one machine.
 
-#### Quick summary analogy
+## Quick summary analogy
 
 | Concept | Divides | Why | Example |
 |:-|:----|:------|:------|
@@ -462,7 +467,7 @@ Pagination organizes how you **see** data,
 load balancing organizes how you **send** work,
 and partitioning organizes how you **store** data.
 
-### Kubernetes & Cloud Security
+## Kubernetes & Cloud Security
 
 * **Pods/Deployments**, Services (`ClusterIP/NodePort/LoadBalancer`).
 * **ConfigMaps/Secrets**, probes (liveness/readiness/startup).
@@ -560,9 +565,9 @@ Example:
 | `max.poll.records`           | Records per batch                 | Throughput control     |
 | `acks=all`                   | Producer durability               | Wait for replicas      |
 
-### Code Patterns
+## Code Patterns
 
-**Producer**
+> **Producer**
 
 ```java
 @EventHandler
@@ -571,7 +576,7 @@ public void on(OrderCreatedEvent event) {
 }
 ```
 
-**Consumer**
+> **Consumer**
 
 ```java
 @ProcessingGroup("order-events")
@@ -634,14 +639,14 @@ axon:
 
 ## 7) 🗄️ Persistence (Spring Data JPA, JPA/ORM, SQL & NoSQL)
 
-### Spring Data JPA
+### <u>Spring Data JPA</u>
 
 * `@RepositoryRestResource` for automatic REST endpoints.
 * `PagingAndSortingRepository` for pagination.
 * Custom finder methods (`findByEmail`, `findTop10ByStatusOrderByDateDesc`).
 * Projections for lightweight DTOs.
 
-### JPA / ORM (Entity Modeling)
+### <u>JPA / ORM (Entity Modeling)</u>
 
 * `@Entity`, `@Id`, `@GeneratedValue`.
 * `@Column(nullable=false, unique=true)`, `@Enumerated(EnumType.STRING)`.
@@ -657,12 +662,12 @@ class User {
 }
 ```
 
-* Lazy vs eager: prefer **LAZY** to avoid large graphs.
-
-#### ACID principles
-
-* four fundamental properties that guarantee **reliable and consistent transactions** in a database system.
-* They ensure that even when something goes wrong — crashes, power failures, concurrent access — the data remains correct and trustworthy.
+* Lazy vs eager: 
+  * prefer **LAZY** to avoid large graphs.
+* Optimzation
+  * JPQL/Criteria; native SQL for complex joins.
+  * `@BatchSize(size=20)`.
+  * Cache with Spring Cache or 2nd-level cache (EHCache, Redis).
 
 ## ⚙️ What ACID stands for
 
@@ -673,52 +678,10 @@ class User {
 | **I — Isolation** | Transactions don’t interfere | Correct results under concurrency |
 | **D — Durability**  | Results survive failures | Data safely persisted |
 
----
+### <u>ACID principles</u>
 
-## 🔹 A — Atomicity (“All or nothing”)
-
-A transaction must **complete fully** or **not at all**.
-If any operation fails, the database rolls back to the previous consistent state.
-
-**Example:**
-Transferring ₹100 from Account A → Account B involves two steps:
-
-1. Debit A (–100)
-2. Credit B (+100)
-
-If step 2 fails, step 1 must **not persist** — otherwise money disappears.
-
-**Mechanism:** rollback logs, undo segments, transactional boundaries.
-
-## 🔹 C — Consistency (“Valid → valid”)
-
-A transaction must bring the database **from one valid state to another valid state** — adhering to constraints, triggers, and business rules.
-
-**Example:**
-If a balance must never be negative, the DB will reject or roll back any transaction that violates that rule.
-
-**Mechanism:** constraints, foreign keys, triggers, check constraints.
-
-## 🔹 I — Isolation (“Transactions don’t step on each other”)
-
-Concurrent transactions must behave **as if executed one at a time**, even though they may run in parallel.
-
-**Example:**
-Two users booking the last flight seat simultaneously — only one succeeds; the other must see the updated state afterward.
-
-**Mechanism:** transaction isolation levels —
-`READ UNCOMMITTED`, `READ COMMITTED`, `REPEATABLE READ`, `SERIALIZABLE`.
-
-Higher isolation = fewer concurrency anomalies (but more locking and less performance).
-
-## 🔹 D — Durability (“Once committed, forever saved”)
-
-Once a transaction commits, its effects **must not be lost**, even if the system crashes right after.
-
-**Example:**
-After you transfer money and get a “Transaction Successful” message, that change must survive power loss or server restart.
-
-**Mechanism:** write-ahead logs (WAL), journaling, checkpoints, replication.
+* Four fundamental properties that guarantee **reliable and consistent transactions** in a database system.
+* They ensure that even when something goes wrong — crashes, power failures, concurrent access — the data remains correct and trustworthy.
 
 ## 💡 Quick summary analogy
 
@@ -729,17 +692,14 @@ Imagine you’re writing a bank transaction on a whiteboard:
 * **Isolation:** Only one person writes at a time, no overlapping edits.
 * **Durability:** Once written, it’s copied to permanent storage.
 
-**Query Optimization**
+## SQL & NoSQL Advanced Concepts
 
-* JPQL/Criteria; native SQL for complex joins.
-* `@BatchSize(size=20)`.
-* Cache with Spring Cache or 2nd-level cache (EHCache, Redis).
-
-### SQL & NoSQL Advanced Concepts
-
-**SQL**
-
-* Normalization, indexes (B-tree/hash), ACID (`@Transactional(isolation=READ_COMMITTED)`), joins, `EXPLAIN`.
+* **SQL**
+  * Normalization
+  * indexes (B-tree/hash)
+  * ACID (`@Transactional(isolation=READ_COMMITTED)`)
+  * joins, 
+  * `EXPLAIN`.
 
 ```sql
 SELECT u.name, o.amount
@@ -747,11 +707,13 @@ FROM users u JOIN orders o ON u.id = o.user_id
 WHERE o.amount > 100;
 ```
 
-**NoSQL**
+* **NoSQL**
+  * MongoDB (documents)
+  * Cassandra/DynamoDB (wide-column)
+  * Redis (cache/pub-sub/rate limit)
+  * Elasticsearch (search/logs).
 
-* MongoDB (documents), Cassandra/DynamoDB (wide-column), Redis (cache/pub-sub/rate limit), Elasticsearch (search/logs).
-
-**Trade-offs**
+### Trade-offs
 
 | Factor      | SQL           | NoSQL                   |
 | ----------- | ------------- | ----------------------- |
@@ -804,8 +766,6 @@ SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
 | **INDEX FULL SCAN**       | Reads all entries in index     | Query can be satisfied by index alone |
 | **TABLE ACCESS BY ROWID** | Fetch row from table via index | Common after index scan               |
 
----
-
 ### 🧩 Join Methods in Execution Plans
 
 | Method             | Description                                           | Best For                          |
@@ -815,7 +775,6 @@ SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
 | **MERGE JOIN**     | Both inputs sorted; merge results                     | Large, pre-sorted datasets        |
 | **CARTESIAN JOIN** | Every row joined with every other                     | Red flag — missing `ON` condition |
 
----
 
 ### 📊DBMS_XPLAN Views
 
@@ -841,8 +800,6 @@ Look for:
 * **E-Rows** = estimated rows
   If A ≫ E → poor cardinality estimate (gather stats!).
 
----
-
 ### 🧮 Optimizer Hints
 
 Hints override Oracle’s cost-based optimizer decisions.
@@ -865,8 +822,6 @@ FROM employees e, departments d
 WHERE e.dept_id = d.dept_id;
 ```
 
----
-
 ### 📈 Indexing Strategies
 
 #### Types of Indexes
@@ -880,8 +835,6 @@ WHERE e.dept_id = d.dept_id;
 | **Reverse Key**                | Reverses index bytes           | Avoids index hot spots for sequential keys   |
 | **Global / Local Partitioned** | Index for partitioned tables   | Use local when partitions queried separately |
 
----
-
 ### 🧮 Partitioning
 
 | Type          | Description                     | Use When                  |
@@ -890,6 +843,8 @@ WHERE e.dept_id = d.dept_id;
 | **List**      | Discrete values                 | Region, country           |
 | **Hash**      | Distribute evenly by hash       | Load balancing            |
 | **Composite** | Mix range + hash                | Range by date, hash by ID |
+
+***Example***
 
 ```sql
 CREATE TABLE sales (
@@ -902,8 +857,6 @@ PARTITION BY RANGE (sale_date)
   PARTITION p_2024 VALUES LESS THAN (TO_DATE('2025-01-01','YYYY-MM-DD'))
 );
 ```
-
----
 
 ### ⚙️ Query Optimization & Tuning
 
@@ -923,13 +876,12 @@ PARTITION BY RANGE (sale_date)
    -- Good
    WHERE name = INITCAP('john')
    ```
+
 4. **Use EXISTS instead of IN** for correlated subqueries.
 5. **Use bind variables** (`:param`) for reusable execution plans.
 6. **Materialize heavy subqueries** with **CTE or temp tables**.
 7. **Partition pruning:** filter on partition key.
 8. **Use proper join order:** small → large table.
-
----
 
 ### 🧰 Dynamic Performance Views
 
@@ -942,7 +894,6 @@ PARTITION BY RANGE (sale_date)
 | `V$SQLAREA`                | Aggregated SQL stats (shared pool) |
 | `V$ACTIVE_SESSION_HISTORY` | Wait events & bottlenecks          |
 
----
 
 ### 🔍 Profiling Queries
 
@@ -962,8 +913,6 @@ FROM V$SQL
 WHERE SQL_TEXT LIKE '%ORDERS%';
 ```
 
----
-
 ### 🧩 Common Bottlenecks & Fixes
 
 | Symptom              | Likely Cause                 | Remedy                                   |
@@ -975,7 +924,6 @@ WHERE SQL_TEXT LIKE '%ORDERS%';
 | Temp usage spikes    | Large joins or sorts         | Increase `TEMP` tablespace / add indexes |
 | Row chaining         | Long rows / small block size | Rebuild table with PCTFREE adjustment    |
 
----
 
 ### ⚡ Real-World Tip
 
@@ -1270,5 +1218,3 @@ Given a valid token
 When a request is sent to /users
 Then response status is 200
 ```
-
----

@@ -1,8 +1,6 @@
 # **Interview Code Reference**
 
-## Potential Code Problem
-
-### 1) Java Stream solution that groups employees into age ranges like 20-30, 30-40
+## 1) Java Stream Groups Employees age ranges
 
 ```java
 import java.util.*;
@@ -51,7 +49,7 @@ class Employee {
 
 ---
 
-### 2) **Process Transactions**
+## 2) Process Transactions
 
 ```text
 [deposit, i, amount]
@@ -102,7 +100,7 @@ class Employee {
   }
 ```
 
-### 3) **Concurrent workflow**
+## 3) **Concurrent workflow**
 
 1. API 1 is called **asynchronously**,
 2. API 2 is called **asynchronously**,
@@ -173,9 +171,9 @@ public class AsyncWorkflowExample {
 
 ---
 
-### 3. **Find max from array using stream**
+## 3) Find max from array using stream
 
-#### *Example primitive array*
+> ### *Example primitive array*
 
 ```java
 import java.util.Arrays;
@@ -192,9 +190,7 @@ public class MaxFromArray {
 
 `Arrays.stream(numbers)` creates an `IntStream`, and `.max()` finds the largest element, returning an `OptionalInt`. Using `.orElseThrow()` ensures you handle the empty case safely.
 
----
-
-#### *Example with custom objects*
+> ### *Example with custom objects*
 
 If you’ve got an array of objects (e.g., `Employee[]`), you can use a **comparator**:
 
@@ -225,11 +221,11 @@ public class MaxEmployee {
 
 ---
 
-### 3. Find numbers from array which are starting with '1' using stream
+## 4) Find numbers from array which are starting with '1' using stream
 
 Convert numbers to **strings** first, then filter by whether they start with `'1'`.
 
-#### *Example with integers*
+> ### *Example with integers*
 
 ```java
 import java.util.*;
@@ -246,7 +242,7 @@ public class NumbersStartingWith1 {
 }
 ```
 
-#### *Example with primitives*
+> ### *Example with primitives*
 
 ```java
 int[] result = Arrays.stream(numbers)
@@ -254,15 +250,16 @@ int[] result = Arrays.stream(numbers)
     .toArray();
 ```
 
-----
+---
 
-### 4. **Reverse a steck**
-A **stack** is LIFO (Last In, First Out).
-### ✅ Method 1: Using another stack (iterative)
+## 5) **Reverse a steck**
+
+text A **stack** is LIFO (Last In, First Out).
+
+> ### ✅ Method 1: Using another stack (iterative)
 
 ```java
 import java.util.Stack;
-
 public class ReverseStack {
     public static void main(String[] args) {
         Stack<Integer> stack = new Stack<>();
@@ -270,10 +267,7 @@ public class ReverseStack {
         stack.push(2);
         stack.push(3);
         stack.push(4);
-
-        System.out.println("Original stack: " + stack);
         Stack<Integer> reversed = reverseUsingExtraStack(stack);
-        System.out.println("Reversed stack: " + reversed);
     }
 
     private static Stack<Integer> reverseUsingExtraStack(Stack<Integer> original) {
@@ -286,7 +280,7 @@ public class ReverseStack {
 }
 ```
 
-### 🌀 Method 2: Recursive reversal (no extra stack)
+> ### 🌀 Method 2: Recursive reversal (no extra stack)
 
 * Pop all elements recursively until the stack is empty,
 * then insert each popped element **at the bottom** of the stack.
@@ -327,9 +321,9 @@ public class ReverseStackRecursion {
 
 ---
 
-#### 5) When is it OK to create object of a class inside a method of that class?
+## 6) When is it OK to create object of a class inside a method of that class?
 
-A: OK: when the method’s purpose is to produce new instances (factory, clone, immutable transform).
+* A: OK: when the method’s purpose is to produce new instances (factory, clone, immutable transform).
 
 Creating an object of a class *inside one of its own methods* is **not inherently wrong**, but it’s only justified in **specific, intentional design scenarios**. Most of the time, it’s either unnecessary or points to a design smell.
 
@@ -380,7 +374,6 @@ record Point(int x, int y) {
 
 You’re not mutating the current instance; you’re *describing how to create a new one.*
 
-
 #### 3. **Nested helper logic (temporary instance)**
 
 Sometimes, you just need a quick temporary instance to delegate computation to, without sharing state.
@@ -401,7 +394,6 @@ class MathHelper {
 ```
 
 It’s legal, though not ideal — better if `helperMethod` were static or reused instead of creating a new instance.
-
 
 ### 🚫 When it’s *not* OK
 
@@ -446,7 +438,7 @@ Creating an object of a class inside one of its own methods is **fine when the c
 
 ---
 
-#### 6) Can we call a static method with a null object in Java? If so, how?
+## 7) Can we call a static method with a null object in Java? If so, how?
 
 You **can** call a static method with a `null` reference, **because static methods belong to the class, not the instance**.
 
@@ -482,7 +474,6 @@ public class Test {
 
 Even though `d` is `null`, this works fine — because the compiler replaces `d.greet()` with `Demo.greet()`.
 
-
 If the method were **non-static**, you’d get a `NullPointerException`:
 
 ```java
@@ -506,7 +497,6 @@ Static methods:
 
 So `null` is irrelevant — there’s no instance involved at all.
 
-
 ### 🧩 Rule of thumb
 
 ✅ You *can* call static methods using a `null` reference — **but you shouldn’t**.
@@ -520,23 +510,9 @@ Demo.greet();  // clearer and idiomatic
 
 ---
 
-#### 5) SOLID principles?
+## 8) Palindrome problem
 
-The SOLID principles are five timeless guidelines for writing clean, maintainable, and extensible object-oriented software. They act as design guardrails—helping you avoid spaghetti code and “god classes.”
-
-| Principle | Key idea | Benefit |
-| :--| :- | :- |
-| **S** — Single Responsibility | One class = one job | Easier maintenance |
-| **O** — Open/Closed | Extend, don’t modify | Flexible & safe changes |
-| **L** — Liskov Substitution | Subclasses honor contracts | Reliable polymorphism |
-| **I** — Interface Segregation | Small interfaces | Less coupling |
-| **D** — Dependency Inversion | Depend on abstractions | Easier testing & decoupling |
-
----
-
-#### 5) palindrome problem
-
-##### ✅ 1. Check if a string is palindrome
+### ✅ 1. Check if a string is palindrome
 
 **Algorithm (2-pointer approach):**
 
@@ -602,11 +578,12 @@ public class MakePalindrome {
     }
 }
 ```
+
 ---
 
-#### 5) area of a rectangle using Fuctional interface 
+### 9) Area of a rectangle using Fuctional interface
 
-##### 1. Create your Functional Interface
+#### *1. Create your Functional Interface*
 
 A **Functional Interface** is an interface with exactly **one abstract method** (so it can be used with a lambda expression).
 
@@ -617,7 +594,7 @@ interface Rectangle {
 }
 ```
 
-#### 2. Implement in Lambda Expression
+#### *2. Implement in Lambda Expression*
 
 ```java
 public class AreaOfRectangle {

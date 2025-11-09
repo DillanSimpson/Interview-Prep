@@ -6,14 +6,14 @@
 
 ### Endpoints
 
-| Action | Method| Endpoint| Notes |
-| :--------- | :------- | :----- | :---- |
-| **Create** | `POST`  | `/v1/employees` | Returns `201 Created`, `Location` header |
-| **Read** | `GET` | `/v1/employees/{id}` | `200 OK`, `404 Not Found` |
-| **List** | `GET` | `/v1/employees?dept=HR&page=0&size=20&sort=lastName,asc` | Supports filters + pagination |
-| **Update** | `PUT` | `/v1/employees/{id}` | Full replace, use `If-Match` (ETag) |
-| **Patch**  | `PATCH`  | `/v1/employees/{id}`| Partial update |
-| **Delete** | `DELETE` | `/v1/employees/{id}  | `204 No Content`, `If-Match` for safety |
+| Action | Method | Endpoint | Notes |
+| :----- | :----: | :------ | :---- |
+| **Create** | `POST` | `/v1/employees` | Returns `201 Created`, `Location` header |
+| **Read**   | `GET`  | `/v1/employees/{id}` | `200 OK`, `404 Not Found` |
+| **Update** | `PUT`  | `/v1/employees/{id}` | Full replace — use `If-Match` (ETag) |
+| **Patch**  | `PATCH`| `/v1/employees/{id}` | Partial update |
+| **Delete** | `DELETE` | `/v1/employees/{id}` | `204 No Content` — use `If-Match` for safety |
+| **List**   | `GET`  | `/v1/employees?dept=HR&page=0&size=20&sort=lastName,asc` | Supports filters + pagination |
 
 ### Entity (JPA)
 
@@ -69,7 +69,6 @@ class EmployeeController {
 * **Consistent JSON errors** via `@RestControllerAdvice`
 * **Validation**: `@NotBlank`, `@Email`, `@Min/@Max`
 * **Optional filters** for search (`department`, `age` range, etc.)
-
 
 ### Sample JSON
 
@@ -246,7 +245,7 @@ public class ConsumeApiExample {
 * For modern, non-blocking I/O: use `WebClient` from `spring-webflux`.
 * Always handle errors (`HttpClientErrorException`, timeouts) and consider mapping JSON using `Jackson`.
 
-## ## ⚙️ Implementation without Spring (pure Java 11+)
+#### ⚙️ Implementation without Spring (pure Java 11+)
 
 ```java
 import java.net.http.*;
