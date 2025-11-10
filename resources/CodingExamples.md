@@ -1,4 +1,4 @@
-# **Interview Code Reference**
+# **Potential Coding Questions**
 
 ## 1) Java Stream Groups Employees age ranges
 
@@ -250,9 +250,135 @@ int[] result = Arrays.stream(numbers)
     .toArray();
 ```
 
+## 5.a) Shift and modify array values
+
+Here’s a clean, in-place **O(n) / O(1)** solution. It clamps, compacts non-zeros left, then fills the tail with `-1`—all in a single pass plus a tail fill.
+
+```java
+public class TransactionScoreNormalizer {
+    /**
+     * Normalize transaction scores in place.
+     * Steps:
+     *  1) Clamp: <0 -> 0, >100 -> 100
+     *  2) Remove zeros by shifting non-zero values left
+     *  3) Fill remaining tail with -1
+     *
+     * Time:  O(n)
+     * Space: O(1)
+     */
+    public static void normalize(int[] scores) {
+        if (scores == null || scores.length == 0) return;
+
+        int write = 0; // next position to write a kept (non-zero) value
+
+        // Single pass: clamp and compact non-zeros
+        for (int i = 0; i < scores.length; i++) {
+            int v = scores[i];
+            if (v < 0) {
+                v = 0;
+            } else if (v > 100) {
+                v = 100;
+            }
+
+            if (v != 0) {
+                scores[write++] = v;
+            }
+        }
+
+        // Fill the remainder with -1
+        while (write < scores.length) {
+            scores[write++] = -1;
+        }
+    }
+}
+```
+
+This matches the example:
+
+* Input:  `[120, -5, 90, 0, 45, 110, 0, -1]`
+* Output: `[100, 90, 45, 100, -1, -1, -1, -1]`
+
+Notes:
+
+* No auxiliary arrays, no streams, no extra allocations.
+* Thread-safe as long as each thread works on its own array instance (no shared mutable state).
+
 ---
 
-## 5) **Reverse a steck**
+## 5.b) In-place dedup for a sorted array
+
+```java
+public class TokenDedupInPlace {
+
+    /**
+     * In-place dedup for a sorted array.
+     * Keep first occurrence of each value, shift left, fill tail with -1.
+     * Time: O(n), Space: O(1)
+     */
+    public static void dedup(int[] tokens) {
+        if (tokens == null || tokens.length == 0) return;
+
+        int write = 0;
+        for (int i = 0; i < tokens.length; i++) {
+            if (i == 0 || tokens[i] != tokens[i - 1]) {
+                tokens[write++] = tokens[i];
+            }
+        }
+        while (write < tokens.length) {
+            tokens[write++] = -1;
+        }
+    }
+}
+```
+
+---
+
+## 5.c) Reorder risk levels in-place
+
+```java
+public class RiskPartitionInPlace {
+    /**
+     * Reorder risk levels in-place so: all 1s, then 0s, then 2s.
+     * Dutch National Flag with custom rank: rank(1)=0, rank(0)=1, rank(2)=2.
+     * Time: O(n), Space: O(1)
+     */
+    public static void partition(int[] risk) {
+        if (risk == null || risk.length <= 1) return;
+
+        int low = 0, mid = 0, high = risk.length - 1;
+
+        while (mid <= high) {
+            int r = rank(risk[mid]);
+            if (r == 0) {               // target group "1"
+                swap(risk, low, mid);
+                low++; mid++;
+            } else if (r == 1) {        // target group "0"
+                mid++;
+            } else {                    // r == 2, target group "2"
+                swap(risk, mid, high);
+                high--;
+            }
+        }
+    }
+
+    // Map values to desired order blocks: [1s][0s][2s]
+    private static int rank(int v) {
+        if (v == 1) return 0;
+        if (v == 0) return 1;
+        if (v == 2) return 2;
+        throw new IllegalArgumentException("Invalid risk value: " + v);
+    }
+
+    private static void swap(int[] a, int i, int j) {
+        if (i == j) return;
+        int t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+}
+```
+
+---
+
+## 6) **Reverse a stack**
 
 text A **stack** is LIFO (Last In, First Out).
 
@@ -321,7 +447,7 @@ public class ReverseStackRecursion {
 
 ---
 
-## 6) When is it OK to create object of a class inside a method of that class?
+## 7) When is it OK to create object of a class inside a method of that class?
 
 * A: OK: when the method’s purpose is to produce new instances (factory, clone, immutable transform).
 
@@ -438,7 +564,7 @@ Creating an object of a class inside one of its own methods is **fine when the c
 
 ---
 
-## 7) Can we call a static method with a null object in Java? If so, how?
+## 8) Can we call a static method with a null object in Java? If so, how?
 
 You **can** call a static method with a `null` reference, **because static methods belong to the class, not the instance**.
 
@@ -510,7 +636,7 @@ Demo.greet();  // clearer and idiomatic
 
 ---
 
-## 8) Palindrome problem
+## 9) Palindrome problem
 
 ### ✅ 1. Check if a string is palindrome
 
@@ -581,7 +707,7 @@ public class MakePalindrome {
 
 ---
 
-### 9) Area of a rectangle using Fuctional interface
+### 10) Area of a rectangle using Fuctional interface
 
 #### *1. Create your Functional Interface*
 
