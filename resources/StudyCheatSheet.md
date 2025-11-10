@@ -775,7 +775,6 @@ SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
 | **MERGE JOIN**     | Both inputs sorted; merge results                     | Large, pre-sorted datasets        |
 | **CARTESIAN JOIN** | Every row joined with every other                     | Red flag — missing `ON` condition |
 
-
 ### 📊DBMS_XPLAN Views
 
 ```sql
@@ -867,6 +866,7 @@ PARTITION BY RANGE (sale_date)
    ```sql
    EXEC DBMS_STATS.GATHER_TABLE_STATS('SCHEMA','TABLE');
    ```
+
 2. **Eliminate unnecessary DISTINCT / GROUP BY**
 3. **Avoid functions on indexed columns**
 
@@ -923,7 +923,6 @@ WHERE SQL_TEXT LIKE '%ORDERS%';
 | Cardinality mismatch | Stale stats                  | Gather fresh stats                       |
 | Temp usage spikes    | Large joins or sorts         | Increase `TEMP` tablespace / add indexes |
 | Row chaining         | Long rows / small block size | Rebuild table with PCTFREE adjustment    |
-
 
 ### ⚡ Real-World Tip
 
@@ -1024,7 +1023,9 @@ SecurityFilterChain security(HttpSecurity http) throws Exception {
 
 ---
 
-## 🧩 Design Patterns — Quick Ref (Java/Spring)
+## 10) 🧩 System Design/Patterns
+
+### Design Patterns — Quick Ref (Java/Spring)
 
 | Pattern                     | When to Use                                       | One-liner Example                                                  |
 | --------------------------- | ------------------------------------------------- | ------------------------------------------------------------------ |
@@ -1107,75 +1108,294 @@ class CompositeRules implements Rule {
 
 ---
 
-## 🗺️ Microservices System Diagram
+## 🗺️ Microservices System
 
-```mermaid
-flowchart LR
-  subgraph Client
-    U[User/Web/Mobile]
-  end
-
-  U -->|HTTPS| CDN[(CDN/WAF)]
-  CDN --> NG[Nginx / API Gateway]
-
-  NG -->|/auth/*| AUTH[Auth Service]
-  NG -->|/orders/*| ORDER[Order Service]
-  NG -->|/inventory/*| INV[Inventory Service]
-  NG -->|/payments/*| PAY[Payment Service]
-  NG -->|/pricing/*| PRICE[Pricing/Tax Service]
-  NG -->|/notify/*| NOTIF[Notification Service]
-  NG -->|/query/*| QUERY[Query/Read API]
-
-  %% Async backbone
-  ORDER <-->|events| K[(Kafka)]
-  INV   <-->|events| K
-  PAY   <-->|events| K
-  PRICE <-->|events| K
-  NOTIF <-->|events| K
-  QUERY <-->|streams| K
-
-  %% Outbox pattern
-  ORDER -.outbox sync.-> DB_ORDER[(Postgres)]
-  INV   -.outbox sync.-> DB_INV[(Postgres)]
-  PAY   -.outbox sync.-> DB_PAY[(PCI Boundary / Postgres)]
-  PRICE -.outbox sync.-> DB_PRICE[(Postgres)]
-  QUERY --> ES[(Elasticsearch / Materialized Views)]
-
-  %% Caches and shared infra
-  NG --> RL[(Rate Limiter / Redis)]
-  AUTH --> RDB[(Redis - token/session blacklist)]
-  ORDER --> RC[(Redis - idempotency keys)]
-
-  %% External providers
-  PAY --> PSP[(External Payment Processor)]
-  NOTIF --> CH[(Email/SMS/Push Providers)]
-
-  %% Observability
-  subgraph Obs[Observability]
-    OTEL[OpenTelemetry Traces]
-    LOGS[Structured Logs]
-    MET[Prometheus Metrics]
-  end
-
-  NG --- OTEL
-  ORDER --- OTEL
-  INV --- OTEL
-  PAY --- OTEL
-  PRICE --- OTEL
-  NOTIF --- OTEL
-  QUERY --- OTEL
-
-  classDef svc fill:#dff,stroke:#09c,stroke-width:1px;
-  class AUTH,ORDER,INV,PAY,PRICE,NOTIF,QUERY svc;
+```less
+[ Client / Web / Mobile ]
+          |
+          v
+     [ CDN / WAF ]
+          |
+          v
+ [ API Gateway / Nginx / LB ]
+    ↑           |            ↑
+    |           |            └─ auth, rate-limit, routing, metrics
+    |           v
+    |     ┌───────────────────────────────────────────────┐
+    |     |            Stateless Microservices            |
+    |     |───────────────────────────────────────────────|
+    |     |  AuthSvc    OrderSvc    InventorySvc          |
+    |     |  PaymentSvc  PricingSvc  NotificationSvc      |
+    |     |  QuerySvc (Read API)                          |
+    |     └───────────────────────────────────────────────┘
+    |             |          |           |         |
+    |             |          |           |         |
+    |             ↓          ↓           ↓         ↓
+    |       ┌────────┐  ┌────────┐  ┌────────┐  ┌────────┐
+    |       | Redis  |  | RDBMS  |  | Kafka  |  | Elastic|
+    |       | (Cache)|  |(Stores)|  |(Async) |  | Search |
+    |       └────────┘  └────────┘  └────────┘  └────────┘
+    |          ↑           ↑            ↑          ↑
+    |          |           |            |          |
+    |  (read-through) (strong consistency)   (async stream)
+    |
+[ Analytics / Data Lake ]
+       ↑             ↑
+       |             |
+ (CDC / streaming)   |
+       |             |
+   [ OLAP / Search (Elasticsearch) ]
 ```
 
-### How to talk through it (30 seconds)
+### 🔄 Flow Semantics
 
-* **Edge:** Nginx/API Gateway terminates TLS, validates JWT, rate-limits; forwards to stateless services.
-* **Write path:** Commands hit services → local DB commit + **outbox** → Kafka events.
-* **Read side:** Kafka feeds **Query/Read API** (materialized views/Elasticsearch) for low-latency status queries.
-* **Workflows:** Cross-service steps coordinated via **Sagas**; idempotency keys in Redis; per-aggregate ordering via Kafka partitioning.
-* **Security/PCI:** Payment service isolated with PCI boundary; tokens and blacklists in Redis; tracing/metrics via OTel/Prometheus.
+| Symbol  | Meaning                  | Example                           |
+| :------ | :----------------------- | :-------------------------------- |
+| `→`     | Sync REST call           | Client → Gateway → AuthSvc        |
+| `~>`    | Async event              | OrderSvc ~> Kafka ~> InventorySvc |
+| `↔`     | Bidirectional stream     | Kafka ↔ QuerySvc                  |
+| `↑ / ↓` | Data flow between layers | CDC → Analytics                   |
+
+### 🧠 Core Concepts to Recall During Interviews
+
+* **Gateway Layer:** Handles **auth, throttling, request shaping**, and **routing**.
+* **Service Layer:** Each service is **independently deployable**, **stateless**, and owns its data.
+* **Async Backbone:** Kafka enables **loose coupling**, **retries**, and **event-driven** communication.
+* **Persistence & Cache:**
+
+  * Redis → rate-limits, token blacklists, idempotent keys.
+  * Postgres → domain data.
+  * Elasticsearch → read models / fast queries.
+* **Observability:** Logs + Metrics + Traces (OpenTelemetry).
+* **External Integrations:** PaymentSvc → PSP, NotificationSvc → Email/SMS/Push.
+
+### 🎙️ How to Talk Through It (30 Seconds)
+
+* **Edge:** Nginx/API Gateway terminates TLS, validates JWTs, applies rate limits, and routes to stateless services.
+* **Write Path:** Commands hit domain services → local DB commit + *outbox* → Kafka events.
+* **Read Side:** Kafka feeds Query/Read API (materialized views or Elasticsearch) for low-latency reads.
+* **Workflows:** Cross-service coordination via Sagas; Redis holds idempotency keys; Kafka partitioning enforces per-aggregate ordering.
+* **Security / PCI:** PaymentSvc isolated inside PCI boundary; tokens and blacklists cached in Redis; tracing and metrics collected via OpenTelemetry + Prometheus.
+
+## ⚙️ **Backpressure Handling**
+
+### 💡 Definition
+
+> **Backpressure** = controlling producer speed so consumers, queues, and downstream systems aren’t overwhelmed.
+
+**Never accept more work than you can process within your latency & memory budget.**
+
+
+### 🧱 **Layers & Controls**
+
+#### 🧍 Edge (API / Gateway)
+
+| Technique                              | Purpose                                          |
+| -------------------------------------- | ------------------------------------------------ |
+| **Rate Limiting (Token/Leaky Bucket)** | Reject overload with **HTTP 429 + Retry-After**  |
+| **Load Shedding (Fail Fast)**          | Return **503** if inflight > limit or queue full |
+| **Timeout Budgets**                    | Parent < child < downstream (no zombie requests) |
+| **Circuit Breakers / Bulkheads**       | Isolate hot endpoints, stop cascading failures   |
+| **Bounded Thread Pools**               | No unbounded queues—protect CPU & memory         |
+
+#### 🗄️ Service → Database
+
+| Control                         | Effect                           |
+| ------------------------------- | -------------------------------- |
+| **Connection pool caps**        | Limit DB concurrency             |
+| **Retry + Backoff (w/ jitter)** | Smooth transient overload        |
+| **Queue writes / buffer**       | Drain at fixed rate              |
+| **Dead-letter queue (DLQ)**     | Store failed ops for later retry |
+
+---
+
+#### 📨 Messaging Systems (Kafka / SQS / MQ)
+
+| Producer Side                 | Consumer Side                                    |
+| ----------------------------- | ------------------------------------------------ |
+| `acks=all`, `max.in.flight=1` | **Pull-based** → built-in backpressure           |
+| Limit `buffer.memory`         | Use `pause()` / `resume()` when processing slows |
+| Throttle by quota             | Scale consumers by **lag/time-to-drain**         |
+| Ensure idempotency            | Safe reprocessing & retries                      |
+
+
+#### 🔁 Reactive / Streaming (Reactor, RxJava, gRPC)
+
+| Operator                                | Behavior                                 |                      |
+| --------------------------------------- | ---------------------------------------- | -------------------- |
+| `.onBackpressureBuffer(size, dropOldest | error)`                                  | Buffer bursts safely |
+| `.onBackpressureDrop()` / `Latest()`    | Keep only most recent                    |                      |
+| `.limitRate(n)`                         | Downstream pulls only what it can handle |                      |
+| **Credit-based flow control**           | gRPC/HTTP2 manage demand windows         |                      |
+
+---
+
+### 🧩 **Patterns & Controls**
+
+| Pattern                | Purpose                                      |
+| ---------------------- | -------------------------------------------- |
+| **Admission Control**  | Refuse new work beyond safe thresholds       |
+| **Priority Lanes**     | Reserve capacity for high-value traffic      |
+| **SLO-aware Shedding** | Drop requests when latency breaches budget   |
+| **Retry Discipline**   | Limit attempts, exponential backoff + jitter |
+
+
+### 📈 **Monitor These Metrics**
+
+* Queue depth / Kafka lag
+* P95/P99 latency
+* Concurrency per worker
+* Rate of 429/503 responses
+* DB pool usage, run queue length
+
+### 🧪 **Mini Recipes**
+
+**Gateway Guardrail**
+
+```text
+if inflight >= MAX_CONCURRENCY or queueLen >= MAX_QUEUE:
+    return 503  // shed load
+```
+
+**Reactor Example**
+
+```java
+Flux<Event> stream = source
+  .onBackpressureLatest()
+  .limitRate(256);
+```
+
+**Kafka Consumer Control**
+
+```java
+if (processingSlow()) consumer.pause(partitions);
+if (recovered()) consumer.resume(partitions);
+```
+
+**DB Gate**
+
+```java
+if (!semaphore.tryAcquire()) throw new ServiceUnavailableException();
+```
+
+### 🧠 **Visual Summary**
+
+```cpp
+Producer → (bounded queue) → Workers → Downstream
+      ↑         |                |
+      |         |                └─ slow? reduce intake
+      └─────────┴────── backpressure signal ────────┘
+```
+
+### 🏁 **TL;DR**
+
+> **Cap concurrency. Bound queues. Prefer pull over push. Autoscale on lag. Shed early, not late.**
+
+---
+
+## ⚙️ **Java Performance Tools**
+
+### 🧭 **Purpose Map**
+
+| Goal                                | Tool Type        | Examples                                                        |
+| :---------------------------------- | :--------------- | :-------------------------------------------------------------- |
+| **Detect CPU / memory bottlenecks** | Profiler         | VisualVM, JProfiler, YourKit, Async Profiler                    |
+| **Measure throughput / latency**    | Benchmarking     | JMH, Caliper                                                    |
+| **Simulate load / concurrency**     | Load Testing     | JMeter, Gatling, k6                                             |
+| **Observe live metrics**            | Monitoring / APM | JConsole, Java Mission Control, Micrometer, Prometheus, Grafana |
+| **Inspect GC behavior**             | GC Analysis      | GC logs, GCViewer, GCeasy, JClarity Censum                      |
+| **System-level analysis**           | OS & JVM tools   | `jcmd`, `jstat`, `jmap`, `jstack`, Flight Recorder              |
+| **Distributed tracing**             | Observability    | OpenTelemetry, Zipkin, Jaeger                                   |
+| **Heap / Leak diagnosis**           | Memory tools     | Eclipse MAT, HeapHero, VisualVM HeapDump                        |
+
+### 🧩 **Key Categories**
+
+#### 🧠 Profilers (Find Hot Spots)
+
+| Tool                                   | Highlights                                                            |
+| -------------------------------------- | --------------------------------------------------------------------- |
+| **VisualVM** (bundled with JDK)        | Free GUI; CPU, memory, thread profiling, heap dumps.                  |
+| **JProfiler** (commercial)             | Deep insight into heap, threads, DB, I/O calls; excellent call graph. |
+| **YourKit Java Profiler**              | Low overhead, good for CI integration and production sampling.        |
+| **Async Profiler**                     | Native, async-safe, ultra-low overhead—great for flame graphs.        |
+| **Eclipse MAT (Memory Analyzer Tool)** | Post-mortem analysis from heap dumps.                                 |
+
+#### ⚡ Load & Stress Testing
+
+| Tool              | Use Case                                                          |
+| ----------------- | ----------------------------------------------------------------- |
+| **Apache JMeter** | GUI/CLI load testing for REST, SOAP, MQ, JDBC.                    |
+| **Gatling**       | Scala-based DSL; strong for HTTP APIs and CI/CD pipelines.        |
+| **k6**            | Modern JavaScript-based load testing; integrates with Prometheus. |
+| **wrk / hey**     | Lightweight CLI HTTP load tools for quick spikes.                 |
+
+
+#### 🔍 JVM & GC Diagnostics
+
+| Command                                        | Purpose                                                |
+| ---------------------------------------------- | ------------------------------------------------------ |
+| `jcmd <pid> GC.heap_info`                      | Print heap and GC info.                                |
+| `jstat -gcutil <pid> 1s`                       | Monitor GC usage in real-time.                         |
+| `jmap -dump:live,format=b,file=heap.bin <pid>` | Dump heap for MAT.                                     |
+| `jstack <pid>`                                 | Capture thread states (detect deadlocks / stalls).     |
+| `jfr start/stop`                               | Start/stop Java Flight Recorder (JDK Mission Control). |
+| `-Xlog:gc*`                                    | Enable structured GC logging.                          |
+| **GCViewer / GCeasy**                          | Parse and visualize GC logs.                           |
+| **JClarity Censum**                            | Commercial GC analyzer by ex-Oracle engineers.         |
+
+
+#### 📊 Monitoring / Observability
+
+| Tool                                                  | Function                                                                |
+| ----------------------------------------------------- | ----------------------------------------------------------------------- |
+| **Micrometer**                                        | Metrics facade for Spring Boot / Micronaut; feeds Prometheus / Datadog. |
+| **Prometheus + Grafana**                              | Time-series metrics + dashboards.                                       |
+| **OpenTelemetry**                                     | Tracing, metrics, logs with vendor-neutral API.                         |
+| **Java Mission Control (JMC)**                        | Deep JVM introspection and Flight Recorder analysis.                    |
+| **Elastic APM / New Relic / Dynatrace / Datadog APM** | Full-stack distributed tracing and service metrics.                     |
+
+#### 🧪 Microbenchmarking
+
+| Tool                                  | Highlights                                                                     |
+| ------------------------------------- | ------------------------------------------------------------------------------ |
+| **JMH (Java Microbenchmark Harness)** | Official tool for measuring method-level performance; handles warmup, JIT, GC. |
+| **Caliper (Google)**                  | Lightweight microbenchmarking (less maintained now).                           |
+
+Example JMH snippet:
+
+```java
+@Benchmark
+@Fork(1)
+@Warmup(iterations = 2)
+@Measurement(iterations = 5)
+public void testSorting() {
+    Arrays.sort(data);
+}
+```
+
+### 📈 **Performance Workflow**
+
+```
+1️⃣ Baseline → 2️⃣ Profile → 3️⃣ Tune → 4️⃣ Verify → 5️⃣ Automate
+```
+
+* **Baseline:** Use JMH or JMeter to measure current throughput/latency.
+* **Profile:** Attach VisualVM/JProfiler to identify hotspots.
+* **Tune:** Adjust thread pools, GC params, indexes, algorithms.
+* **Verify:** Load-test again.
+* **Automate:** Monitor via Prometheus + alerts.
+
+
+### 🧠 **Bonus**
+
+* **GC Tuning:** `-Xms`, `-Xmx`, `-XX:+UseG1GC`, `-XX:+PrintGCDetails`
+* **CPU Profiling Flame Graphs:** via Async Profiler or `perf + FlameGraph`
+* **Memory Leak Detection:** watch heap growth, GC frequency, `MAT` dominator tree.
+
+### 🏁 **TL;DR**
+
+> **Profile → Measure → Tune → Monitor → Repeat.**
+> VisualVM for local, JProfiler for deep, JMH for micro, JMeter for macro.
 
 ---
 
