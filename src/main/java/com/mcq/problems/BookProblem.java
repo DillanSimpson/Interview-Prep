@@ -1,19 +1,26 @@
-@com.fasterxml.jackson.annotation.JsonPropertyOrder({"id", "title"})
+package com.mcq.problems;
+
+import java.util.ArrayList;
+import java.util.List;
+import com.fasterxml.jackson.annotation.JsonGetter;
+import com.fasterxml.jackson.annotation.JsonPropertyOrder;
+
+@JsonPropertyOrder({"id", "title"})
 class Book {
-  private int id;
-  private String title;
+  private final int id;
+  String title;
 
   Book(int id, String title) {
     this.id = id;
     this.title = title;
   }
 
-  @com.fasterxml.jackson.annotation.JsonGetter
+@JsonGetter
   public int getId() {
       return this.id;
   }
-
-  @com.fasterxml.jackson.annotation.JsonGetter
+  
+  @JsonGetter
   public String getTitle() {
       return this.title;
   }
@@ -69,7 +76,7 @@ class BookManager {
     
     for(Book book : books) {
       System.out.println(book.getId());
-      if(book.id == id)
+      if(book.getId() == id)
       {
         return book;
       }
