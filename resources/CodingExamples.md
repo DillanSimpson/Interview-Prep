@@ -219,9 +219,59 @@ public class MaxEmployee {
 }
 ```
 
+
+
 ---
 
-## 4) Find numbers from array which are starting with '1' using stream
+## 4) Find second largest number in array
+
+Suppose your array were `{23, 55, 67, 76, 76, 98, 98}` — without handling duplicates, the “second largest” could incorrectly come out as 98 again.
+
+Here’s a **duplicate-safe** version:
+
+```java
+public class SecondLargest {
+    public static void main(String[] args) {
+        int[] arr = {23, 55, 67, 45, 76, 14, 52, 98, 29, 59, 40, 36, 98};
+
+        Integer first = null;
+        Integer second = null;
+
+        for (int num : arr) {
+            if (first == null || num > first) {
+                second = first;
+                first = num;
+            } else if (num != first && (second == null || num > second)) {
+                second = num;
+            }
+        }
+
+        if (second != null) {
+            System.out.println("Second largest: " + second);
+        } else {
+            System.out.println("No second largest value (all elements equal)");
+        }
+    }
+}
+```
+
+```java
+int secondLargest = Arrays.stream(arr).distinct()
+                          .boxed()
+                          .sorted(Comparator.reverseOrder())
+                          .skip(1)
+                          .findFirst()
+                          .orElseThrow(() -> new IllegalArgumentException("No second largest value"));
+```
+
+That uses Java Streams to deduplicate and grab the second element in descending order.
+
+Both are efficient; the stream approach is clearer but does a full sort (`O(n log n)`), while the loop is faster (`O(n)`).
+
+
+---
+
+## 5) Find numbers from array which are starting with '1' using stream
 
 Convert numbers to **strings** first, then filter by whether they start with `'1'`.
 
@@ -250,7 +300,7 @@ int[] result = Arrays.stream(numbers)
     .toArray();
 ```
 
-## 5.a) Shift and modify array values
+## 6.a) Shift and modify array values
 
 Here’s a clean, in-place **O(n) / O(1)** solution. It clamps, compacts non-zeros left, then fills the tail with `-1`—all in a single pass plus a tail fill.
 
@@ -305,7 +355,7 @@ Notes:
 
 ---
 
-## 5.b) In-place dedup for a sorted array
+## 6.b) In-place dedup for a sorted array
 
 ```java
 public class TokenDedupInPlace {
@@ -333,7 +383,7 @@ public class TokenDedupInPlace {
 
 ---
 
-## 5.c) Reorder risk levels in-place
+## 6.c) Reorder risk levels in-place
 
 ```java
 public class RiskPartitionInPlace {
@@ -378,7 +428,7 @@ public class RiskPartitionInPlace {
 
 ---
 
-## 6) **Reverse a stack**
+## 7) **Reverse a stack**
 
 text A **stack** is LIFO (Last In, First Out).
 
@@ -447,7 +497,7 @@ public class ReverseStackRecursion {
 
 ---
 
-## 7) When is it OK to create object of a class inside a method of that class?
+## 8) When is it OK to create object of a class inside a method of that class?
 
 * A: OK: when the method’s purpose is to produce new instances (factory, clone, immutable transform).
 
@@ -564,7 +614,7 @@ Creating an object of a class inside one of its own methods is **fine when the c
 
 ---
 
-## 8) Can we call a static method with a null object in Java? If so, how?
+## 9) Can we call a static method with a null object in Java? If so, how?
 
 You **can** call a static method with a `null` reference, **because static methods belong to the class, not the instance**.
 
@@ -636,7 +686,7 @@ Demo.greet();  // clearer and idiomatic
 
 ---
 
-## 9) Palindrome problem
+## 10) Palindrome problem
 
 ### ✅ 1. Check if a string is palindrome
 
@@ -707,7 +757,7 @@ public class MakePalindrome {
 
 ---
 
-### 10) Area of a rectangle using Fuctional interface
+### 11) Area of a rectangle using Fuctional interface
 
 #### *1. Create your Functional Interface*
 
