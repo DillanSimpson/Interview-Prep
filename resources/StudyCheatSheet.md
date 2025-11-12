@@ -937,6 +937,116 @@ This shows the *actual* bind variables Oracle saw, which can drastically change 
 
 ---
 
+## ⚙️ **Hibernate Cheat Sheet**
+
+**Purpose:** ORM (Object-Relational Mapping) framework that maps Java objects to database tables.
+
+### 🔹 Core Concepts
+
+| Concept                             | Description                                                           | Example                                         |
+| :---------------------------------- | :-------------------------------------------------------------------- | :---------------------------------------------- |
+| **Entity**                          | Java class mapped to a table.                                         | `@Entity @Table(name="employee")`               |
+| **SessionFactory / EntityManager**  | Factory to create sessions; manages persistence context.              | `Session session = factory.openSession();`      |
+| **Session / Transaction**           | Used to perform CRUD operations; transactions ensure ACID properties. | `session.beginTransaction();`                   |
+| **Persistent, Detached, Transient** | Object states in Hibernate lifecycle.                                 | Persistent → saved in DB                        |
+| **Lazy vs Eager Loading**           | Lazy loads only when accessed; Eager loads immediately.               | `@OneToMany(fetch = FetchType.LAZY)`            |
+| **Cascade Types**                   | Propagate actions to related entities.                                | `CascadeType.ALL`                               |
+| **HQL (Hibernate Query Language)**  | Object-oriented SQL for entities.                                     | `FROM Employee e WHERE e.dept='IT'`             |
+| **Criteria API**                    | Type-safe query building.                                             | `criteria.add(Restrictions.eq("name", "John"))` |
+| **Caching**                         | First-level (Session) and Second-level (EhCache, Redis).              | `hibernate.cache.use_second_level_cache=true`   |
+
+### 🔹 Interview Highlights
+
+* Difference between **save()**, **persist()**, and **merge()**.
+* How Hibernate handles **N+1 queries** (use `JOIN FETCH` or DTO projections).
+* How transactions are managed under the hood (`@Transactional`, JTA).
+* Pros/Cons: Speeds development but adds overhead vs plain JDBC.
+
+## 🌐 **REST vs SOAP Web Services Cheat Sheet**
+
+### 🔹 REST (Representational State Transfer)
+
+| Feature           | Description                             | Example                    |
+| :---------------- | :-------------------------------------- | :------------------------- |
+| **Protocol**      | HTTP (stateless).                       | CRUD = POST/GET/PUT/DELETE |
+| **Data Format**   | JSON (lightweight).                     | `{"id":1,"name":"John"}`   |
+| **Style**         | Resource-oriented (`/api/employees/1`). |                            |
+| **Statelessness** | No client context stored on server.     |                            |
+| **Caching**       | Supported via HTTP headers.             |                            |
+| **Frameworks**    | Spring Boot, Jersey, JAX-RS.            |                            |
+
+### 🔹 SOAP (Simple Object Access Protocol)
+
+| Feature         | Description                                | Example                              |
+| :-------------- | :----------------------------------------- | :----------------------------------- |
+| **Protocol**    | XML over HTTP, SMTP, etc.                  | Uses **WSDL** for contract.          |
+| **Data Format** | Strict XML structure.                      | `<soap:Envelope>...</soap:Envelope>` |
+| **Style**       | Operation-oriented.                        | `getCustomerDetails()`               |
+| **Security**    | WS-Security (header-based).                | XML Signature, Encryption            |
+| **Tooling**     | JAX-WS, Apache CXF, Axis2.                 |                                      |
+| **Contract**    | WSDL defines types, operations, endpoints. |                                      |
+
+### 🔹 REST vs SOAP Comparison
+
+| Feature         | REST                               | SOAP                                         |
+| :-------------- | :--------------------------------- | :------------------------------------------- |
+| **Ease of Use** | Simpler, JSON-based                | Verbose XML                                  |
+| **Performance** | Faster, lighter                    | Slower, more secure by default               |
+| **Flexibility** | Loose contract                     | Strict contract                              |
+| **When to Use** | Public APIs, mobile, microservices | Enterprise transactions, legacy integrations |
+
+## 🧠 **Oracle Database & SQL Cheat Sheet**
+
+**Purpose:** RDBMS with advanced performance, security, and PL/SQL features.
+
+### 🔹 SQL Essentials
+
+| Category                          | Examples / Key Notes                                                                 |
+| :-------------------------------- | :----------------------------------------------------------------------------------- |
+| **DDL (Data Definition)**         | `CREATE`, `ALTER`, `DROP`, `TRUNCATE`                                                |
+| **DML (Data Manipulation)**       | `INSERT`, `UPDATE`, `DELETE`, `MERGE`                                                |
+| **DQL (Query)**                   | `SELECT * FROM EMP WHERE SAL > 5000;`                                                |
+| **Constraints**                   | `PRIMARY KEY`, `UNIQUE`, `NOT NULL`, `CHECK`, `FOREIGN KEY`                          |
+| **Joins**                         | `INNER`, `LEFT`, `RIGHT`, `FULL`, `SELF`, `CROSS`                                    |
+| **Functions**                     | String (`SUBSTR`, `INSTR`), Date (`SYSDATE`, `ADD_MONTHS`), Aggregate (`SUM`, `AVG`) |
+| **Analytic Functions**            | `ROW_NUMBER() OVER (PARTITION BY DEPT ORDER BY SAL DESC)`                            |
+| **Set Operations**                | `UNION`, `INTERSECT`, `MINUS`                                                        |
+| **Indexes**                       | Speeds up queries; use carefully to avoid DML slowdown.                              |
+| **Views / Materialized Views**    | Logical abstraction / cached snapshots.                                              |
+| **Transactions**                  | `COMMIT`, `ROLLBACK`, `SAVEPOINT` — ensure **ACID**.                                 |
+| **Explain Plan / Execution Plan** | Use `EXPLAIN PLAN FOR ...` to analyze performance.                                   |
+
+### 🔹 PL/SQL Basics
+
+| Concept                | Description                                     |
+| :--------------------- | :---------------------------------------------- |
+| **Blocks**             | Anonymous, Procedure, Function, Trigger         |
+| **Cursor**             | Used to iterate query results.                  |
+| **Exception Handling** | `BEGIN ... EXCEPTION WHEN OTHERS THEN ... END;` |
+| **Stored Procedures**  | Precompiled SQL logic for reusability.          |
+| **Packages**           | Grouped procedures/functions.                   |
+
+### 🔹 Optimization Tips
+
+* Use **bind variables** to avoid hard parsing.
+* Avoid **SELECT *** in production code.
+* Create **indexes** only on frequently queried columns.
+* Use **partitioning** for large tables.
+* Analyze query cost with `AUTOTRACE` or `DBMS_XPLAN`.
+
+
+## 🚀 **Integration View (Full-Stack / Microservices Context)**
+
+| Layer                      | Role                  | Common Tools / Concepts                |
+| :------------------------- | :-------------------- | :------------------------------------- |
+| **Controller (REST/SOAP)** | Exposes API endpoints | `@RestController`, `@WebService`, WSDL |
+| **Service**                | Business logic        | `@Service`, transactional boundaries   |
+| **Persistence**            | ORM to DB             | Hibernate/JPA + Oracle                 |
+| **Database**               | Data storage          | SQL tuning, indexes, PL/SQL            |
+| **Messaging (Optional)**   | Async integration     | Kafka / MQ / NATS                      |
+
+---
+
 ## 8) 🔐 Security
 
 ### Spring Security (AuthN/Z)
