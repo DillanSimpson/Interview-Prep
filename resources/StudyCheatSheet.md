@@ -1511,6 +1511,175 @@ public void testSorting() {
 
 ## 9) 🧪 Testing — TDD, BDD & Frameworks
 
+## 🧩 **TDD (Test-Driven Development)**
+
+**Core Idea:**
+Write **tests before code**. Development follows the **Red → Green → Refactor** cycle:
+
+1. **Red:** Write a failing test (no implementation yet).
+2. **Green:** Write minimal code to make it pass.
+3. **Refactor:** Improve code structure without changing behavior.
+
+**Benefits:**
+
+* Forces modular design and high test coverage.
+* Detects regressions early.
+* Encourages clean APIs and loose coupling.
+
+**Example:**
+
+```java
+// Step 1: Write test (fails)
+@Test
+void shouldReturnSum() {
+    assertEquals(5, Calculator.add(2, 3));
+}
+
+// Step 2: Implement minimal code
+public static int add(int a, int b) { return a + b; }
+
+// Step 3: Refactor if needed
+```
+
+---
+
+## 🧠 **BDD (Behavior-Driven Development)**
+
+**Core Idea:**
+BDD extends TDD — focuses on **user behavior** and business outcomes using natural language scenarios.
+
+**Structure:**
+
+```
+Given <initial context>
+When <event occurs>
+Then <expected outcome>
+```
+
+**Tools:**
+
+* **Cucumber / JBehave** (feature files).
+* **Spring Boot + TestRestTemplate** for service-level BDD tests.
+
+**Example (Cucumber feature):**
+
+```gherkin
+Feature: Login
+  Scenario: Valid credentials
+    Given a user "john" with password "1234"
+    When user logs in
+    Then login should be successful
+```
+
+**Example (Step Definition):**
+
+```java
+@Given("a user {string} with password {string}")
+public void createUser(String user, String pass) { ... }
+
+@When("user logs in")
+public void login() { ... }
+
+@Then("login should be successful")
+public void verifyLogin() { ... }
+```
+
+---
+
+## ⚙️ **JUnit (v5) Cheat Sheet**
+
+| Category                | Key Concepts / Annotations                                | Example                                               |
+| :---------------------- | :-------------------------------------------------------- | :---------------------------------------------------- |
+| **Setup / Teardown**    | `@BeforeEach`, `@AfterEach`, `@BeforeAll`, `@AfterAll`    | Initialize mocks, DB connections                      |
+| **Test Case**           | `@Test`, `@DisplayName`, `@Tag`                           | `@Test void shouldReturnTrue() { ... }`               |
+| **Assertions**          | `assertEquals`, `assertTrue`, `assertThrows`, `assertAll` | `assertThrows(Exception.class, () -> service.call())` |
+| **Parameterized Tests** | `@ParameterizedTest`, `@ValueSource`, `@CsvSource`        | Run same test with multiple inputs                    |
+| **Nested Tests**        | `@Nested`                                                 | Group related tests logically                         |
+| **Timeouts**            | `@Timeout(5)`                                             | Fail if execution exceeds limit                       |
+
+**Best Practices:**
+
+* Name methods descriptively: `shouldReturn404WhenUserNotFound()`.
+* Keep one logical assertion per test method.
+* Use **assertAll** for grouped checks.
+
+---
+
+## 🧪 **Mockito Cheat Sheet**
+
+**Purpose:** Mock dependencies to isolate unit under test.
+
+| Concept                 | Example                                                 | Description                        |
+| :---------------------- | :------------------------------------------------------ | :--------------------------------- |
+| **Mock Object**         | `@Mock private UserRepository repo;`                    | Simulate dependency behavior       |
+| **Inject Mocks**        | `@InjectMocks private UserService service;`             | Inject mocks into class under test |
+| **Setup Behavior**      | `when(repo.findById(1)).thenReturn(Optional.of(user));` | Define mock responses              |
+| **Verify Calls**        | `verify(repo, times(1)).save(any(User.class));`         | Ensure interaction occurred        |
+| **ArgumentCaptor**      | Capture arguments passed to mocks                       | `captor.getValue()`                |
+| **DoThrow / DoNothing** | `doThrow(new Exception()).when(repo).deleteById(1L);`   | Simulate exception behavior        |
+
+**Example:**
+
+```java
+@ExtendWith(MockitoExtension.class)
+class UserServiceTest {
+
+    @Mock private UserRepository repo;
+    @InjectMocks private UserService service;
+
+    @Test
+    void shouldReturnUserWhenExists() {
+        when(repo.findById(1)).thenReturn(Optional.of(new User("John")));
+        User result = service.getUser(1);
+        assertEquals("John", result.getName());
+        verify(repo).findById(1);
+    }
+}
+```
+
+## 🌱 **Spring Test Cheat Sheet**
+
+**Purpose:** Integration and context-level testing for Spring Boot apps.
+
+| Annotation                | Purpose                                   | Example                             |
+| :------------------------ | :---------------------------------------- | :---------------------------------- |
+| **@SpringBootTest**       | Loads full application context.           | For integration tests               |
+| **@WebMvcTest**           | Loads web layer only (controllers).       | `@WebMvcTest(UserController.class)` |
+| **@DataJpaTest**          | Tests JPA repositories with in-memory DB. | Auto-configures H2                  |
+| **@MockBean**             | Spring-managed mock.                      | `@MockBean UserRepository repo;`    |
+| **@AutoConfigureMockMvc** | Enables MockMvc for HTTP testing.         |                                     |
+| **@Sql / @SqlGroup**      | Run SQL scripts before/after tests.       | Useful for DB setup                 |
+
+**Example (MockMvc Test):**
+
+```java
+@SpringBootTest
+@AutoConfigureMockMvc
+class UserControllerTest {
+
+    @Autowired private MockMvc mockMvc;
+
+    @Test
+    void shouldReturnOkForGetUser() throws Exception {
+        mockMvc.perform(get("/api/users/1"))
+               .andExpect(status().isOk())
+               .andExpect(jsonPath("$.name").value("John"));
+    }
+}
+```
+
+---
+
+## 🧩 **TDD/BDD Integration Flow**
+
+| Stage                | Tool / Framework      | Purpose                                          |
+| :------------------- | :-------------------- | :----------------------------------------------- |
+| **Unit Test**        | JUnit + Mockito       | Test isolated methods, mock dependencies         |
+| **Integration Test** | Spring Test / MockMvc | Test REST endpoints, DB integration              |
+| **Behavior Test**    | Cucumber (BDD)        | Validate business behavior from user perspective |
+
+---
+
 ### Unit Testing (TDD)
 
 * Write tests first; use JUnit 5 (`@Test`, `@BeforeEach`, `@AfterEach`, `@DisplayName`).
