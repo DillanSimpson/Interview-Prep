@@ -596,28 +596,6 @@ public class OrderEventHandler {
 * **Replicas** for fault tolerance.
 * Scale consumers **to** (not beyond) partition count.
 
-### Axon Kafka Integration Setup
-
-**Dependency**
-
-```xml
-<dependency>
-  <groupId>org.axonframework.extensions.kafka</groupId>
-  <artifactId>axon-kafka-spring-boot-starter</artifactId>
-  <version>4.9.3</version>
-</dependency>
-```
-
-### Processor config
-
-```yaml
-axon:
-  eventhandling:
-    processors:
-      billing-processor:
-        mode: tracking
-```
-
 ### Error Handling Kafka
 
 * Automatic retries for transient errors.
