@@ -379,28 +379,7 @@ The `SOLID` principles are five timeless guidelines for writing clean, maintaina
 
 ---
 
-## 5) ☸️ Platform: Nginx, Cloud, Kubernetes
-
-### Nginx (edge gateway)
-
-* Reverse proxy & load balancer.
-* TLS termination.
-* JWT validation (`auth_request`/Lua).
-* Rate limiting, caching, compression.
-
-```nginx
-server {
-  listen 443 ssl;
-  ssl_certificate /etc/ssl/cert.pem;
-  ssl_certificate_key /etc/ssl/key.pem;
-
-  location /api/ {
-    auth_request /auth;                 # Performs subrequest to /auth for JWT/session validation; expects 2xx for success
-    proxy_pass http://spring-backend;   # Forward to microservice
-    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-  }
-}
-```
+## 5) ☸️ Platform: Cloud, Kubernetes
 
 ## ☁️ Cloud Ecosystems (Private vs Public)
 
