@@ -1,654 +1,1013 @@
-# PostgreSQL Cheat Sheet - Senior Software Engineer
+# Oracle SQL Cheat Sheet — MasterCard SSE Interview Prep
 
-## 1. Core SQL Fundamentals (Know These Cold)
+---
 
-### SELECT with WHERE
+## 1. Core SELECT Fundamentals
+
 ```sql
--- Basic filtering
-SELECT id, amount, status FROM transactions 
-WHERE amount > 1000 AND status = 'PENDING';
-
--- IN operator (common for filtering by multiple values)
-SELECT * FROM transactions 
-WHERE status IN ('APPROVED', 'PENDING', 'REVIEW');
-
--- BETWEEN (inclusive on both ends)
-SELECT * FROM transactions 
-WHERE created_at BETWEEN '2024-01-01' AND '2024-12-31';
-
--- LIKE for pattern matching
-SELECT * FROM users 
-WHERE email LIKE '%@mastercard.com';
+SELECT column1, column2, NVL(column3, 'default')
+FROM   table_name t
+WHERE  t.status = 'ACTIVE'
+  AND  t.created_date >= ADD_MONTHS(SYSDATE, -12)
+ORDER  BY t.created_date DESC
+FETCH  FIRST 100 ROWS ONLY;   -- Oracle 12c+
 ```
 
-### Basic JOINs
+**Key Oracle Differences vs ANSI / PostgreSQL**
+
+| Feature | Oracle | PostgreSQL/MySQL |
+|---|---|---|
+| Limit rows | `FETCH FIRST N ROWS ONLY` | `LIMIT N` |
+| String concat | `\|\|` or `CONCAT(a,b)` | `\|\|` / `CONCAT(a,b)` |
+| Null-safe equality | `NVL(col, val)` | `COALESCE(col, val)` |
+| Current timestamp | `SYSDATE` / `SYSTIMESTAMP` | `NOW()` |
+| Dual table | `SELECT 1 FROM DUAL` | `SELECT 1` |
+| Top-N (legacy) | `WHERE ROWNUM <= N` | — |
+| Upsert | `MERGE INTO` | `INSERT ... ON CONFLICT` |
+| Auto-increment | `SEQUENCE` / `GENERATED AS IDENTITY` | `SERIAL` / `GENERATED` |
+
+---
+
+## 2. JOINs
+
 ```sql
--- INNER JOIN (only matching rows)
-SELECT t.id, t.amount, u.name, u.email
-FROM transactions t
-INNER JOIN users u ON t.user_id = u.id;
+-- INNER JOIN
+SELECT o.order_id, c.name
+FROM   orders o
+JOIN   customers c ON o.customer_id = c.customer_id;
 
--- LEFT JOIN (all from left table, matching from right)
-SELECT u.id, u.name, COUNT(t.id) as transaction_count
-FROM users u
-LEFT JOIN transactions t ON u.id = t.user_id
-GROUP BY u.id, u.name;
+-- LEFT OUTER JOIN (keep all left rows)
+SELECT c.name, o.order_id
+FROM   customers c
+LEFT JOIN orders o ON c.customer_id = o.customer_id;
 
--- Multiple JOINs (common in fraud detection)
-SELECT t.id, t.amount, u.name, r.rule_name, r.risk_score
-FROM transactions t
-INNER JOIN users u ON t.user_id = u.id
-INNER JOIN rules_applied r ON t.id = r.transaction_id
-WHERE r.risk_score > 0.7;
+-- FULL OUTER JOIN
+SELECT c.name, o.order_id
+FROM   customers c
+FULL OUTER JOIN orders o ON c.customer_id = o.customer_id;
 
--- Self JOIN (join table to itself)
-SELECT a.id as account_1, b.id as account_2, a.email
-FROM accounts a
-INNER JOIN accounts b ON a.email = b.email AND a.id != b.id;
-```
+-- SELF JOIN (employee-manager hierarchy)
+SELECT e.name AS employee, m.name AS manager
+FROM   employees e
+JOIN   employees m ON e.manager_id = m.employee_id;
 
-### Aggregations & GROUP BY
-```sql
--- COUNT, SUM, AVG, MAX, MIN
-SELECT 
-  user_id,
-  COUNT(*) as transaction_count,
-  SUM(amount) as total_spent,
-  AVG(amount) as avg_transaction,
-  MAX(amount) as largest_transaction
-FROM transactions
-WHERE status = 'COMPLETED'
-GROUP BY user_id;
-
--- HAVING (filter groups, not individual rows)
-SELECT 
-  user_id,
-  SUM(amount) as total_spent
-FROM transactions
-GROUP BY user_id
-HAVING SUM(amount) > 10000;  -- Only users with >$10k spent
-
--- Multiple aggregations with different conditions
-SELECT 
-  user_id,
-  COUNT(*) as all_transactions,
-  COUNT(CASE WHEN status = 'APPROVED' THEN 1 END) as approved_count,
-  SUM(CASE WHEN status = 'APPROVED' THEN amount ELSE 0 END) as approved_amount
-FROM transactions
-GROUP BY user_id;
+-- CROSS JOIN (Cartesian product — use with care)
+SELECT a.val, b.val FROM set_a a CROSS JOIN set_b b;
 ```
 
 ---
 
-## 2. Advanced SQL (Senior-Level)
+## 3. Aggregation & Grouping
 
-### Common Table Expressions (CTEs / WITH clause)
 ```sql
--- CTE makes complex queries readable
-WITH recent_transactions AS (
-  SELECT user_id, amount, created_at
-  FROM transactions
-  WHERE created_at > NOW() - INTERVAL '7 days'
+SELECT   department_id,
+         COUNT(*)                                           AS total_emp,
+         SUM(salary)                                        AS total_salary,
+         AVG(salary)                                        AS avg_salary,
+         MAX(salary)                                        AS max_salary,
+         MIN(salary)                                        AS min_salary,
+         LISTAGG(last_name, ', ')
+             WITHIN GROUP (ORDER BY last_name)             AS names   -- Oracle string agg
+FROM     employees
+WHERE    status = 'ACTIVE'
+GROUP BY department_id
+HAVING   COUNT(*) > 5
+ORDER BY total_salary DESC;
+```
+
+**ROLLUP / CUBE / GROUPING SETS** (subtotals & cross-tabs)
+
+```sql
+-- ROLLUP: subtotals + grand total
+SELECT   region, product, SUM(sales)
+FROM     sales_fact
+GROUP BY ROLLUP(region, product);
+
+-- CUBE: all combinations
+GROUP BY CUBE(region, product, quarter);
+
+-- GROUPING SETS: specific combinations only
+GROUP BY GROUPING SETS ((region, product), (region), ());
+
+-- GROUPING() distinguishes real NULLs from subtotal NULLs
+SELECT region, GROUPING(region) AS is_subtotal, SUM(sales)
+FROM   sales_fact
+GROUP BY ROLLUP(region);
+```
+
+---
+
+## 4. Subqueries
+
+```sql
+-- Scalar subquery (single value)
+SELECT name, salary,
+       (SELECT AVG(salary) FROM employees) AS avg_sal
+FROM   employees;
+
+-- Correlated subquery (references outer query)
+SELECT e.name, e.salary
+FROM   employees e
+WHERE  e.salary > (SELECT AVG(salary)
+                   FROM   employees e2
+                   WHERE  e2.department_id = e.department_id);
+
+-- EXISTS (preferred over IN for large sets — short-circuits)
+SELECT c.customer_id
+FROM   customers c
+WHERE  EXISTS (SELECT 1 FROM orders o WHERE o.customer_id = c.customer_id);
+
+-- NOT EXISTS vs NOT IN (NOT IN fails silently if subquery returns NULL!)
+SELECT c.customer_id
+FROM   customers c
+WHERE  NOT EXISTS (SELECT 1 FROM blacklist b WHERE b.customer_id = c.customer_id);
+```
+
+---
+
+## 5. Common Table Expressions (CTEs / WITH Clause)
+
+```sql
+-- Basic CTE
+WITH active_accounts AS (
+    SELECT account_id, balance
+    FROM   accounts
+    WHERE  status = 'ACTIVE'
 ),
-user_spending_stats AS (
-  SELECT 
-    user_id,
-    COUNT(*) as tx_count,
-    SUM(amount) as total_spent,
-    AVG(amount) as avg_amount
-  FROM recent_transactions
-  GROUP BY user_id
+high_value AS (
+    SELECT account_id, balance
+    FROM   active_accounts
+    WHERE  balance > 100000
 )
-SELECT 
-  u.id, 
-  u.name, 
-  s.tx_count,
-  s.total_spent,
-  s.avg_amount
-FROM users u
-LEFT JOIN user_spending_stats s ON u.id = s.user_id
-WHERE s.total_spent > 5000;
+SELECT * FROM high_value ORDER BY balance DESC;
 
--- Recursive CTE (hierarchical data)
-WITH RECURSIVE category_hierarchy AS (
-  SELECT id, name, parent_id, 1 as level
-  FROM categories
-  WHERE parent_id IS NULL
-  
-  UNION ALL
-  
-  SELECT c.id, c.name, c.parent_id, ch.level + 1
-  FROM categories c
-  INNER JOIN category_hierarchy ch ON c.parent_id = ch.id
+-- Recursive CTE (Oracle 11g+): org hierarchy
+WITH org_tree (employee_id, name, manager_id, lvl) AS (
+    SELECT employee_id, name, manager_id, 1
+    FROM   employees
+    WHERE  manager_id IS NULL          -- root
+    UNION ALL
+    SELECT e.employee_id, e.name, e.manager_id, ot.lvl + 1
+    FROM   employees e
+    JOIN   org_tree ot ON e.manager_id = ot.employee_id
 )
-SELECT * FROM category_hierarchy;
+SELECT LPAD(' ', (lvl-1)*2) || name AS org_chart, lvl
+FROM   org_tree
+ORDER  SIBLINGS BY name;
 ```
 
-### Window Functions (PARTITION BY, ROW_NUMBER, etc.)
+**Oracle-native hierarchy (pre-12c / still widely used):**
+
 ```sql
--- ROW_NUMBER: assign sequential number within partition
-SELECT 
-  user_id,
-  amount,
-  created_at,
-  ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC) as recency_rank
-FROM transactions
-WHERE ROW_NUMBER() OVER (PARTITION BY user_id ORDER BY created_at DESC) <= 5;
--- Get 5 most recent transactions per user
-
--- RANK vs ROW_NUMBER (RANK has ties, ROW_NUMBER doesn't)
-SELECT 
-  user_id,
-  amount,
-  RANK() OVER (ORDER BY amount DESC) as rank,
-  ROW_NUMBER() OVER (ORDER BY amount DESC) as row_num
-FROM transactions;
-
--- LAG/LEAD: access previous/next row
-SELECT 
-  user_id,
-  created_at,
-  amount,
-  LAG(amount) OVER (PARTITION BY user_id ORDER BY created_at) as previous_amount,
-  amount - LAG(amount) OVER (PARTITION BY user_id ORDER BY created_at) as amount_change
-FROM transactions;
-
--- Running total (cumulative sum)
-SELECT 
-  user_id,
-  created_at,
-  amount,
-  SUM(amount) OVER (PARTITION BY user_id ORDER BY created_at) as running_total
-FROM transactions
-ORDER BY user_id, created_at;
-```
-
-### Subqueries
-```sql
--- Subquery in WHERE clause
-SELECT * FROM transactions
-WHERE user_id IN (
-  SELECT user_id FROM fraud_cases
-  WHERE status = 'CONFIRMED'
-);
-
--- Subquery with correlation (references outer query)
-SELECT user_id, name
-FROM users u
-WHERE EXISTS (
-  SELECT 1 FROM transactions t
-  WHERE t.user_id = u.id
-  AND t.amount > 10000
-);
-
--- NOT EXISTS (efficient)
-SELECT user_id
-FROM users
-WHERE NOT EXISTS (
-  SELECT 1 FROM transactions
-  WHERE transactions.user_id = users.id
-);
+SELECT LEVEL, LPAD(' ', LEVEL*2) || name AS org
+FROM   employees
+START WITH manager_id IS NULL
+CONNECT BY PRIOR employee_id = manager_id
+ORDER SIBLINGS BY name;
 ```
 
 ---
 
-## 3. PostgreSQL-Specific Features
+## 6. Window (Analytic) Functions
 
-### Data Types
+Critical for interviews — MasterCard uses these heavily for financial analytics.
+
 ```sql
--- JSON/JSONB (common for metadata)
+SELECT
+    employee_id,
+    department_id,
+    salary,
+
+    -- Ranking
+    ROW_NUMBER()  OVER (PARTITION BY department_id ORDER BY salary DESC) AS rn,
+    RANK()        OVER (PARTITION BY department_id ORDER BY salary DESC) AS rnk,     -- gaps on ties
+    DENSE_RANK()  OVER (PARTITION BY department_id ORDER BY salary DESC) AS d_rnk,   -- no gaps
+    NTILE(4)      OVER (ORDER BY salary)                                  AS quartile,
+
+    -- Offset
+    LAG(salary,  1, 0) OVER (PARTITION BY department_id ORDER BY hire_date) AS prev_salary,
+    LEAD(salary, 1, 0) OVER (PARTITION BY department_id ORDER BY hire_date) AS next_salary,
+    FIRST_VALUE(salary) OVER (PARTITION BY department_id ORDER BY salary DESC) AS dept_max,
+    LAST_VALUE(salary)  OVER (PARTITION BY department_id
+                              ORDER BY salary DESC
+                              ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING) AS dept_min,
+
+    -- Running totals / moving averages
+    SUM(salary)  OVER (PARTITION BY department_id ORDER BY hire_date
+                       ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW) AS running_total,
+    AVG(salary)  OVER (ORDER BY hire_date
+                       ROWS BETWEEN 2 PRECEDING AND CURRENT ROW)         AS moving_avg_3
+FROM employees;
+```
+
+**Frame clause quick reference:**
+
+| Frame | Meaning |
+|---|---|
+| `ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW` | Running total |
+| `ROWS BETWEEN 2 PRECEDING AND CURRENT ROW` | 3-row moving window |
+| `ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING` | Entire partition |
+| `RANGE BETWEEN INTERVAL '7' DAY PRECEDING AND CURRENT ROW` | Last 7 days |
+
+---
+
+## 7. Oracle-Specific Functions
+
+### String
+
+```sql
+SUBSTR('Hello World', 1, 5)            -- 'Hello' (1-indexed, unlike most languages)
+INSTR('Hello', 'l')                    -- 3
+LENGTH('Hello')                        -- 5
+UPPER / LOWER / INITCAP('hello')       -- 'HELLO' / 'hello' / 'Hello'
+TRIM('  hi  ')  LTRIM  RTRIM
+REPLACE('abc', 'b', 'X')              -- 'aXc'
+REGEXP_REPLACE('abc123', '[0-9]', '')  -- 'abc'
+REGEXP_LIKE(phone, '^\d{10}$')         -- boolean match in WHERE clause
+REGEXP_SUBSTR(email, '[^@]+', 1, 1)    -- local part of email
+TO_CHAR(12345.67, '$99,999.99')        -- '$12,345.67'
+```
+
+### Date / Time
+
+```sql
+SYSDATE                               -- server date+time (no timezone)
+SYSTIMESTAMP                          -- with timezone
+TRUNC(SYSDATE, 'MM')                  -- first day of current month
+TRUNC(SYSDATE, 'YYYY')               -- first day of current year
+ADD_MONTHS(SYSDATE, 3)               -- 3 months forward
+MONTHS_BETWEEN(date1, date2)         -- fractional months between two dates
+LAST_DAY(SYSDATE)                    -- last day of current month
+NEXT_DAY(SYSDATE, 'MONDAY')          -- next occurrence of Monday
+TO_DATE('2024-01-15', 'YYYY-MM-DD')
+TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS')
+EXTRACT(YEAR FROM SYSDATE)           -- 2024
+```
+
+### NULL Handling
+
+```sql
+NVL(col, 'default')                   -- replace NULL with default
+NVL2(col, 'not null val', 'null val') -- ternary on NULL check
+NULLIF(a, b)                          -- returns NULL if a = b, else a
+COALESCE(a, b, c)                     -- first non-NULL (ANSI standard, preferred)
+```
+
+### Conversion
+
+```sql
+CAST(salary AS VARCHAR2(20))
+TO_NUMBER('12345.67', '99999.99')
+TO_CHAR(sysdate, 'Day')              -- 'Monday   '
+```
+
+---
+
+## 8. DML — INSERT / UPDATE / DELETE / MERGE
+
+```sql
+-- Multi-row INSERT (Oracle)
+INSERT ALL
+    INTO orders(id, amount) VALUES (1, 100)
+    INTO orders(id, amount) VALUES (2, 200)
+SELECT 1 FROM DUAL;
+
+-- UPDATE with subquery
+UPDATE accounts a
+SET    a.balance = a.balance * 1.05
+WHERE  a.account_id IN (SELECT account_id FROM vip_customers);
+
+-- DELETE with EXISTS
+DELETE FROM transactions t
+WHERE NOT EXISTS (SELECT 1 FROM accounts a WHERE a.id = t.account_id);
+
+-- MERGE (atomic upsert — very common in data pipelines and ETL)
+MERGE INTO target_table tgt
+USING source_table src
+   ON (tgt.id = src.id)
+WHEN MATCHED THEN
+    UPDATE SET tgt.amount     = src.amount,
+               tgt.updated_at = SYSDATE
+    WHERE tgt.amount != src.amount        -- optional update filter
+WHEN NOT MATCHED THEN
+    INSERT (id, amount, created_at)
+    VALUES (src.id, src.amount, SYSDATE);
+```
+
+---
+
+## 9. DDL — Tables, Constraints, Sequences
+
+```sql
+-- Table creation
 CREATE TABLE transactions (
-  id SERIAL PRIMARY KEY,
-  metadata JSONB  -- Use JSONB, not JSON (more efficient)
+    txn_id       NUMBER(18)    GENERATED ALWAYS AS IDENTITY PRIMARY KEY,  -- 12c+
+    account_id   NUMBER(18)    NOT NULL,
+    amount       NUMBER(15,2)  NOT NULL,
+    currency     CHAR(3)       DEFAULT 'USD',
+    status       VARCHAR2(20)  CHECK (status IN ('PENDING','SETTLED','FAILED')),
+    txn_date     DATE          DEFAULT SYSDATE NOT NULL,
+    CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts(account_id)
 );
 
--- Query JSON
-SELECT 
-  id,
-  metadata->>'merchant_name' as merchant,
-  metadata->'amount' as amount
-FROM transactions;
+-- Sequence (pre-12c identity or when you need more control)
+CREATE SEQUENCE seq_txn_id START WITH 1 INCREMENT BY 1 NOCACHE NOCYCLE;
+INSERT INTO transactions(txn_id, ...) VALUES (seq_txn_id.NEXTVAL, ...);
+SELECT seq_txn_id.CURRVAL FROM DUAL;
 
--- UUID (primary keys in distributed systems)
-CREATE TABLE accounts (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT
-);
+-- Alter
+ALTER TABLE transactions ADD     (merchant_id NUMBER(18));
+ALTER TABLE transactions MODIFY  (currency VARCHAR2(5));
+ALTER TABLE transactions DROP    COLUMN merchant_id;
+ALTER TABLE transactions RENAME  COLUMN txn_date TO transaction_date;
+```
 
--- ARRAY
-CREATE TABLE fraud_patterns (
-  pattern_ids INTEGER[],
-  matched_rules TEXT[]
-);
+---
 
--- ENUM (for status fields)
-CREATE TYPE transaction_status AS ENUM ('PENDING', 'APPROVED', 'DECLINED', 'REVIEW');
+## 10. Indexes
+
+```sql
+-- B-tree (default, best for high-cardinality equality/range queries)
+CREATE INDEX idx_txn_account ON transactions(account_id);
+
+-- Composite — column order matters (leftmost prefix rule)
+CREATE INDEX idx_txn_status_date ON transactions(status, txn_date DESC);
+
+-- Unique
+CREATE UNIQUE INDEX idx_txn_ref ON transactions(reference_number);
+
+-- Function-based (when WHERE clause transforms the column)
+CREATE INDEX idx_upper_email ON customers(UPPER(email));
+-- Enables: WHERE UPPER(email) = 'USER@EXAMPLE.COM'
+
+-- Bitmap (low-cardinality in DW/reporting; BAD for OLTP — causes lock contention)
+CREATE BITMAP INDEX idx_status_bmp ON transactions(status);
+
+-- Invisible index (test performance impact without affecting optimizer)
+CREATE INDEX idx_test ON transactions(amount) INVISIBLE;
+ALTER INDEX idx_test VISIBLE;
+
+-- Force index with hint
+SELECT /*+ INDEX(t idx_txn_account) */ * FROM transactions t WHERE account_id = 123;
+```
+
+**When indexes hurt performance:**
+- High DML tables (every INSERT/UPDATE/DELETE must update the index)
+- Low-cardinality columns in OLTP (use bitmap only in DW)
+- Small tables (full scan is cheaper than index lookup overhead)
+- Leading column not used in WHERE clause
+
+---
+
+## 11. Query Optimization & Execution Plans
+
+```sql
+-- View execution plan (no execution — estimated stats)
+EXPLAIN PLAN FOR
+SELECT * FROM transactions WHERE account_id = 123;
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);
+
+-- Real plan with actual runtime stats (executes the query)
+SELECT /*+ GATHER_PLAN_STATISTICS */ * FROM transactions WHERE account_id = 123;
+SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY_CURSOR(NULL, NULL, 'ALLSTATS LAST'));
+```
+
+**Reading the plan — key operations:**
+
+| Operation | Good/Bad | Notes |
+|---|---|---|
+| `INDEX RANGE SCAN` | Good | Index used, selective predicate |
+| `TABLE ACCESS BY INDEX ROWID` | Good | Row fetch via index lookup |
+| `TABLE ACCESS FULL` | Depends | Bad on large tables; fine on small |
+| `HASH JOIN` | Good (large sets) | Optimizer default for large joins |
+| `NESTED LOOPS` | Good (small sets) | Best when inner table has selective index |
+| `SORT MERGE JOIN` | Good (pre-sorted) | Range join predicates |
+| `FILTER` | Warning | Correlated subquery evaluated per outer row |
+| `CARTESIAN JOIN` | Bad | Missing join condition |
+
+**Common optimizer hints:**
+
+```sql
+/*+ FULL(t) */           -- force full table scan
+/*+ INDEX(t idx_name) */ -- force specific index
+/*+ USE_NL(a b) */       -- nested loops join
+/*+ USE_HASH(a b) */     -- hash join
+/*+ PARALLEL(t 4) */     -- 4 parallel query slaves
+/*+ NO_MERGE */          -- prevent view/subquery merging
+/*+ LEADING(a b c) */    -- control join order
+```
+
+**Refresh stale optimizer statistics:**
+
+```sql
+EXEC DBMS_STATS.GATHER_TABLE_STATS('SCHEMA', 'TRANSACTIONS', cascade => TRUE);
+```
+
+---
+
+## 12. Partitioning
+
+Partitioning is critical at MasterCard scale — billions of transactions.
+
+```sql
+-- Range partitioning (most common for time-series data)
 CREATE TABLE transactions (
-  id SERIAL PRIMARY KEY,
-  status transaction_status
+    txn_id   NUMBER,
+    txn_date DATE,
+    amount   NUMBER
+)
+PARTITION BY RANGE (txn_date) (
+    PARTITION p_2023   VALUES LESS THAN (DATE '2024-01-01'),
+    PARTITION p_2024   VALUES LESS THAN (DATE '2025-01-01'),
+    PARTITION p_future VALUES LESS THAN (MAXVALUE)
 );
 
--- TIMESTAMPTZ (timezone-aware, use this, not TIMESTAMP)
-CREATE TABLE events (
-  id SERIAL PRIMARY KEY,
-  occurred_at TIMESTAMPTZ DEFAULT NOW()
+-- Interval partitioning (auto-creates monthly partitions — no manual ADD PARTITION)
+PARTITION BY RANGE (txn_date)
+INTERVAL (NUMTOYMINTERVAL(1, 'MONTH')) (
+    PARTITION p_initial VALUES LESS THAN (DATE '2024-01-01')
+);
+
+-- Hash partitioning (even distribution, eliminate data skew)
+PARTITION BY HASH (account_id) PARTITIONS 16;
+
+-- List partitioning (categorical values)
+PARTITION BY LIST (region) (
+    PARTITION p_us    VALUES ('US', 'CA'),
+    PARTITION p_eu    VALUES ('UK', 'DE', 'FR'),
+    PARTITION p_other VALUES (DEFAULT)
+);
+
+-- Composite: range-hash (range by time, hash by ID within each range)
+PARTITION BY RANGE (txn_date)
+SUBPARTITION BY HASH (account_id) SUBPARTITIONS 8 (
+    PARTITION p_2024 VALUES LESS THAN (DATE '2025-01-01')
 );
 ```
 
-### UPSERT (INSERT ... ON CONFLICT)
+**Partition pruning** — optimizer skips irrelevant partitions:
 ```sql
--- Update if exists, insert if not
-INSERT INTO user_stats (user_id, total_spent, last_updated)
-VALUES (123, 5000, NOW())
-ON CONFLICT (user_id)
-DO UPDATE SET 
-  total_spent = user_stats.total_spent + 5000,
-  last_updated = NOW();
+-- Optimizer only scans p_2024 partition
+SELECT * FROM transactions WHERE txn_date >= DATE '2024-06-01';
 ```
 
-### EXPLAIN and Query Planning
+**Partition maintenance:**
 ```sql
--- Understand query performance
-EXPLAIN SELECT * FROM transactions WHERE user_id = 123;
--- Look for: Seq Scan (bad if big table), Index Scan (good)
+ALTER TABLE transactions DROP PARTITION p_2023;
+ALTER TABLE transactions TRUNCATE PARTITION p_2024;
+ALTER TABLE transactions SPLIT PARTITION p_future AT (DATE '2026-01-01')
+    INTO (PARTITION p_2025, PARTITION p_future);
 
-EXPLAIN ANALYZE SELECT * FROM transactions WHERE user_id = 123;
--- Actually runs query and shows real execution time
+-- Zero-copy partition swap (archive data instantly)
+ALTER TABLE transactions EXCHANGE PARTITION p_2023
+    WITH TABLE transactions_2023_archive;
 ```
 
 ---
 
-## 4. Indexes (Critical for Performance)
+## 13. Views & Materialized Views
 
-### When to Index
 ```sql
--- Index on columns you filter by (WHERE clause)
-CREATE INDEX idx_transactions_user_id ON transactions(user_id);
-CREATE INDEX idx_transactions_status ON transactions(status);
+-- Standard view (virtual — always reads from base tables)
+CREATE OR REPLACE VIEW vw_active_accounts AS
+SELECT account_id, customer_id, balance
+FROM   accounts
+WHERE  status = 'ACTIVE';
 
--- Composite index (multiple columns)
--- Good if you often filter by both
-CREATE INDEX idx_tx_user_status ON transactions(user_id, status);
+-- Materialized View (physically stored snapshot for heavy aggregations)
+CREATE MATERIALIZED VIEW mv_daily_totals
+BUILD IMMEDIATE                  -- populate immediately (DEFERRED = on first refresh)
+REFRESH FAST ON COMMIT           -- incremental refresh; requires MV log on base table
+ENABLE QUERY REWRITE             -- optimizer can transparently rewrite queries to use this MV
+AS
+SELECT txn_date, SUM(amount) AS total, COUNT(*) AS cnt
+FROM   transactions
+GROUP BY txn_date;
 
--- Partial index (only index rows that match condition)
-CREATE INDEX idx_pending_transactions ON transactions(user_id) 
-WHERE status = 'PENDING';
--- Much smaller, faster queries if most are completed
+-- MV Log (required for FAST refresh — tracks changes to base table)
+CREATE MATERIALIZED VIEW LOG ON transactions
+WITH ROWID, SEQUENCE (txn_date, amount) INCLUDING NEW VALUES;
 
--- Index on JSON field
-CREATE INDEX idx_metadata_merchant ON transactions USING GIN (metadata jsonb_path_ops);
-
--- UNIQUE index (prevents duplicates + improves performance)
-CREATE UNIQUE INDEX idx_email_unique ON users(email);
+-- Manual refresh
+EXEC DBMS_MVIEW.REFRESH('MV_DAILY_TOTALS', 'C');  -- C=complete, F=fast
 ```
-
-### Index Rules for Interviews
-- ✅ Add indexes on columns in WHERE clauses
-- ✅ Add indexes on columns in JOIN conditions
-- ✅ Add indexes on ORDER BY if result set is large
-- ❌ Don't over-index (every index slows INSERT/UPDATE/DELETE)
-- ❌ Don't index low-cardinality columns (status: APPROVED/DECLINED)
-- ✅ Use EXPLAIN to verify index is actually used
 
 ---
 
-## 5. Transactions & ACID
+## 14. PL/SQL Essentials
 
-### Basic Transaction
+### Blocks & Variables
+
 ```sql
-BEGIN;
-  UPDATE accounts SET balance = balance - 100 WHERE id = 1;
-  UPDATE accounts SET balance = balance + 100 WHERE id = 2;
-COMMIT;  -- Both succeed or both fail
+DECLARE
+    v_count    NUMBER;
+    v_name     employees.last_name%TYPE;   -- anchored to column type
+    v_rec      employees%ROWTYPE;           -- entire row as a record
+    c_limit    CONSTANT NUMBER := 100;
+BEGIN
+    SELECT COUNT(*), last_name
+    INTO   v_count, v_name
+    FROM   employees
+    WHERE  department_id = 10;
 
--- Or rollback
-BEGIN;
-  UPDATE accounts SET balance = balance - 100 WHERE id = 1;
-  UPDATE accounts SET balance = balance + 100 WHERE id = 2;
-ROLLBACK;  -- Undo everything
+    IF v_count > c_limit THEN
+        DBMS_OUTPUT.PUT_LINE('Over limit: ' || v_count);
+    ELSIF v_count > 50 THEN
+        DBMS_OUTPUT.PUT_LINE('Medium: ' || v_count);
+    ELSE
+        DBMS_OUTPUT.PUT_LINE('Under: ' || v_count);
+    END IF;
+EXCEPTION
+    WHEN NO_DATA_FOUND  THEN DBMS_OUTPUT.PUT_LINE('No rows found');
+    WHEN TOO_MANY_ROWS  THEN DBMS_OUTPUT.PUT_LINE('Multiple rows returned');
+    WHEN OTHERS         THEN DBMS_OUTPUT.PUT_LINE('Error: ' || SQLERRM);
+END;
+/
 ```
 
-### Isolation Levels (Payment Systems)
+### Cursors
+
 ```sql
--- READ COMMITTED (default, good for most cases)
--- Problem: Dirty reads prevented, but phantom reads possible
+-- Implicit cursor FOR loop (simplest, auto-managed)
+FOR rec IN (SELECT * FROM employees WHERE dept_id = 10) LOOP
+    DBMS_OUTPUT.PUT_LINE(rec.last_name);
+END LOOP;
 
--- REPEATABLE READ (safer for complex operations)
--- Problem: Phantom reads still possible
+-- Explicit cursor (when you need FETCH control or FOR UPDATE)
+DECLARE
+    CURSOR c_emp IS SELECT employee_id, salary FROM employees;
+BEGIN
+    FOR r IN c_emp LOOP
+        -- process r.employee_id, r.salary
+        NULL;
+    END LOOP;
+END;
 
--- SERIALIZABLE (safest, slowest)
--- Guarantees complete isolation
+-- FOR UPDATE — acquires row-level lock
+CURSOR c_lock IS SELECT * FROM accounts WHERE balance < 0 FOR UPDATE NOWAIT;
+```
+
+### Stored Procedure & Function
+
+```sql
+-- Procedure (no return value; uses OUT parameters)
+CREATE OR REPLACE PROCEDURE update_account_status (
+    p_account_id IN  accounts.account_id%TYPE,
+    p_status     IN  VARCHAR2,
+    p_rows_upd   OUT NUMBER
+) AS
+BEGIN
+    UPDATE accounts SET status = p_status WHERE account_id = p_account_id;
+    p_rows_upd := SQL%ROWCOUNT;
+    COMMIT;
+EXCEPTION
+    WHEN OTHERS THEN ROLLBACK; RAISE;
+END update_account_status;
+/
+
+-- Function (returns a value; callable from SQL)
+CREATE OR REPLACE FUNCTION get_account_balance (
+    p_account_id IN NUMBER
+) RETURN NUMBER AS
+    v_balance NUMBER;
+BEGIN
+    SELECT balance INTO v_balance FROM accounts WHERE account_id = p_account_id;
+    RETURN v_balance;
+EXCEPTION
+    WHEN NO_DATA_FOUND THEN RETURN NULL;
+END;
+/
+
+-- Usage in SQL
+SELECT get_account_balance(12345) FROM DUAL;
+```
+
+### Packages
+
+```sql
+-- Package spec (public interface)
+CREATE OR REPLACE PACKAGE pkg_payment AS
+    c_max_amount CONSTANT NUMBER := 1000000;
+    PROCEDURE process_payment(p_txn_id IN NUMBER);
+    FUNCTION  validate_account(p_id IN NUMBER) RETURN BOOLEAN;
+END pkg_payment;
+/
+
+-- Package body (implementation — can have private procedures not in spec)
+CREATE OR REPLACE PACKAGE BODY pkg_payment AS
+    PROCEDURE process_payment(p_txn_id IN NUMBER) AS BEGIN NULL; END;
+    FUNCTION  validate_account(p_id IN NUMBER) RETURN BOOLEAN AS BEGIN RETURN TRUE; END;
+END pkg_payment;
+/
+```
+
+### Triggers
+
+```sql
+-- Audit trigger
+CREATE OR REPLACE TRIGGER trg_account_audit
+AFTER UPDATE OF balance ON accounts
+FOR EACH ROW
+BEGIN
+    INSERT INTO account_audit(account_id, old_balance, new_balance, changed_at, changed_by)
+    VALUES (:OLD.account_id, :OLD.balance, :NEW.balance, SYSDATE, USER);
+END;
+/
+
+-- Before insert — set defaults / sequence values
+CREATE OR REPLACE TRIGGER trg_txn_before_insert
+BEFORE INSERT ON transactions
+FOR EACH ROW
+BEGIN
+    :NEW.txn_id     := seq_txn_id.NEXTVAL;
+    :NEW.created_at := SYSDATE;
+END;
+/
+```
+
+### Bulk Operations (performance-critical)
+
+```sql
+-- BULK COLLECT + FORALL avoids row-by-row context switching (slow-by-slow)
+DECLARE
+    TYPE t_id_list IS TABLE OF employees.employee_id%TYPE;
+    v_ids t_id_list;
+BEGIN
+    SELECT employee_id BULK COLLECT INTO v_ids
+    FROM   employees
+    WHERE  dept_id = 10;
+
+    FORALL i IN v_ids.FIRST..v_ids.LAST
+        UPDATE employees SET bonus = 500 WHERE employee_id = v_ids(i);
+
+    COMMIT;
+END;
+```
+
+---
+
+## 15. Transactions & Locking
+
+```sql
+-- Savepoints for partial rollback
+BEGIN
+    SAVEPOINT sp_before_transfer;
+    UPDATE accounts SET balance = balance - 500 WHERE id = 1;
+    UPDATE accounts SET balance = balance + 500 WHERE id = 2;
+    -- If something fails:
+    ROLLBACK TO sp_before_transfer;
+    -- On success:
+    COMMIT;
+END;
+
+-- Row-level locking modes
+SELECT * FROM accounts WHERE id = 1 FOR UPDATE;              -- exclusive, wait forever
+SELECT * FROM accounts WHERE id = 1 FOR UPDATE NOWAIT;       -- fail immediately if locked
+SELECT * FROM accounts WHERE id = 1 FOR UPDATE WAIT 5;       -- wait up to 5 seconds
+SELECT * FROM accounts WHERE id = 1 FOR UPDATE SKIP LOCKED;  -- skip locked rows (queue processing)
+
+-- View current locks
+SELECT s.sid, s.serial#, l.type, l.lmode, o.object_name
+FROM   v$lock l
+JOIN   v$session  s ON l.sid = s.sid
+JOIN   dba_objects o ON l.id1 = o.object_id
+WHERE  l.block = 1;
+```
+
+**ACID in Oracle:**
+
+| Property | Oracle Mechanism |
+|---|---|
+| Atomicity | Rollback segments / undo tablespace |
+| Consistency | Constraints + triggers enforced at commit |
+| Isolation | MVCC — readers never block writers |
+| Durability | Redo log (WAL) flushed to disk before commit returns |
+
+**Isolation levels:**
+```sql
+-- Default: READ COMMITTED (each statement sees committed data at statement start)
+SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
+-- Serializable (consistent snapshot from transaction start; may get ORA-08177 on conflict)
 SET TRANSACTION ISOLATION LEVEL SERIALIZABLE;
 
--- For payment systems:
--- Use REPEATABLE READ or SERIALIZABLE when moving money
--- Use READ COMMITTED for reads/analytics
-```
-
-### Deadlock Awareness
-```sql
--- In code, you need to handle this exception:
--- "ERROR: deadlock detected"
-
--- Bad pattern (deadlock):
-Thread 1: UPDATE accounts SET balance = ... WHERE id = 1
-          UPDATE accounts SET balance = ... WHERE id = 2
-
-Thread 2: UPDATE accounts SET balance = ... WHERE id = 2
-          UPDATE accounts SET balance = ... WHERE id = 1
--- Both waiting on each other
-
--- Good pattern (order matters):
-Thread 1: UPDATE accounts SET balance = ... WHERE id = 1
-          UPDATE accounts SET balance = ... WHERE id = 2
-
-Thread 2: UPDATE accounts SET balance = ... WHERE id = 1
-          UPDATE accounts SET balance = ... WHERE id = 2
--- Both update in same order, no deadlock
+-- Read-only (consistent snapshot, no DML allowed)
+SET TRANSACTION READ ONLY;
 ```
 
 ---
 
-## 6. Payment System Patterns (MasterCard Specific)
+## 16. Performance Tuning Patterns
 
-### Idempotent Transactions
+### Top-N Queries
+
 ```sql
--- Track idempotency keys to prevent double-processing
-CREATE TABLE transactions (
-  id SERIAL PRIMARY KEY,
-  idempotency_key UUID UNIQUE NOT NULL,
-  user_id INTEGER,
-  amount DECIMAL,
-  status transaction_status,
-  created_at TIMESTAMPTZ
-);
+-- Modern (Oracle 12c+) — preferred
+SELECT * FROM transactions ORDER BY amount DESC FETCH FIRST 10 ROWS ONLY;
+SELECT * FROM transactions ORDER BY amount DESC FETCH FIRST 10 ROWS WITH TIES;
 
--- On retry, check if idempotency_key exists
-SELECT * FROM transactions WHERE idempotency_key = $1;
--- If exists, return existing transaction instead of processing again
+-- Keyset pagination (fast at any offset — recommended for large tables)
+SELECT * FROM transactions
+WHERE (txn_date, txn_id) < (:last_date, :last_id)
+ORDER BY txn_date DESC, txn_id DESC
+FETCH FIRST 20 ROWS ONLY;
+
+-- Legacy Top-N (pre-12c)
+SELECT * FROM (
+    SELECT t.*, ROWNUM AS rn FROM (
+        SELECT * FROM transactions ORDER BY amount DESC
+    ) t WHERE ROWNUM <= 30
+) WHERE rn > 20;
 ```
 
-### Event Sourcing (Audit Trail)
+### Avoiding Common Anti-Patterns
+
 ```sql
--- Instead of updating balance, append events
-CREATE TABLE account_events (
-  id SERIAL PRIMARY KEY,
-  account_id INTEGER,
-  event_type TEXT,  -- 'DEPOSIT', 'WITHDRAWAL', 'TRANSFER'
-  amount DECIMAL,
-  occurred_at TIMESTAMPTZ,
-  metadata JSONB
+-- BAD: function on indexed column prevents index use
+WHERE TRUNC(txn_date) = TRUNC(SYSDATE)
+
+-- GOOD: range predicate allows index range scan
+WHERE txn_date >= TRUNC(SYSDATE) AND txn_date < TRUNC(SYSDATE) + 1
+
+-- BAD: implicit type conversion breaks index (account_id is NUMBER, but passing string)
+WHERE account_id = '12345'
+
+-- GOOD: match data types
+WHERE account_id = 12345
+
+-- BAD: leading wildcard kills index — full scan required
+WHERE name LIKE '%Smith%'
+
+-- GOOD: trailing wildcard uses index
+WHERE name LIKE 'Smith%'
+
+-- BAD: NOT IN with nullable subquery (returns 0 rows if any NULL exists in subquery!)
+WHERE id NOT IN (SELECT manager_id FROM employees)  -- manager_id can be NULL!
+
+-- GOOD: NOT EXISTS handles NULLs safely
+WHERE NOT EXISTS (SELECT 1 FROM employees e2 WHERE e2.manager_id = e.employee_id)
+```
+
+### Bind Variables (critical for shared pool / scalability)
+
+```sql
+-- BAD: literal values — each query is unique, floods shared pool with hard parses
+WHERE account_id = 12345
+WHERE account_id = 67890
+
+-- GOOD: bind variables reuse parsed cursor
+WHERE account_id = :p_account_id    -- SQL*Plus / SQL Developer
+-- In JDBC: preparedStatement.setLong(1, accountId);  -- auto-uses bind variables
+```
+
+---
+
+## 17. Advanced Patterns
+
+### PIVOT / UNPIVOT
+
+```sql
+-- PIVOT: rows to columns
+SELECT * FROM (
+    SELECT quarter, region, sales FROM sales_data
+)
+PIVOT (SUM(sales) FOR quarter IN ('Q1' AS q1, 'Q2' AS q2, 'Q3' AS q3, 'Q4' AS q4));
+
+-- UNPIVOT: columns to rows
+SELECT region, quarter, sales FROM quarterly_sales
+UNPIVOT (sales FOR quarter IN (q1, q2, q3, q4));
+```
+
+### Conditional Aggregation
+
+```sql
+SELECT
+    department_id,
+    COUNT(CASE WHEN status = 'ACTIVE'   THEN 1 END)                AS active_count,
+    COUNT(CASE WHEN status = 'INACTIVE' THEN 1 END)                AS inactive_count,
+    SUM(CASE WHEN salary > 100000       THEN salary ELSE 0 END)    AS high_earner_total
+FROM employees
+GROUP BY department_id;
+```
+
+### Multi-table Conditional INSERT
+
+```sql
+-- Conditional INSERT ALL — route rows to different tables based on data
+INSERT ALL
+    WHEN amount > 10000   THEN INTO large_transactions
+    WHEN amount >= 1000   THEN INTO medium_transactions
+    ELSE                       INTO small_transactions
+SELECT txn_id, amount, txn_date FROM transactions_staging;
+```
+
+### Idempotent Upsert (Payment Safety)
+
+```sql
+-- Use MERGE to safely re-process without duplicates
+MERGE INTO processed_payments tgt
+USING (SELECT :idempotency_key AS ikey, :amount AS amt FROM DUAL) src
+   ON (tgt.idempotency_key = src.ikey)
+WHEN NOT MATCHED THEN
+    INSERT (idempotency_key, amount, created_at)
+    VALUES (src.ikey, src.amt, SYSDATE);
+-- If key exists, nothing happens — natural idempotency
+```
+
+---
+
+## 18. Data Dictionary Queries
+
+```sql
+-- Tables and columns
+SELECT table_name FROM user_tables ORDER BY 1;
+SELECT column_name, data_type, data_length, nullable
+FROM   user_tab_columns WHERE table_name = 'TRANSACTIONS';
+
+-- Indexes
+SELECT index_name, index_type, uniqueness, status
+FROM   user_indexes WHERE table_name = 'TRANSACTIONS';
+
+SELECT index_name, column_name, column_position
+FROM   user_ind_columns WHERE table_name = 'TRANSACTIONS' ORDER BY index_name, column_position;
+
+-- Constraints
+SELECT constraint_name, constraint_type, search_condition
+FROM   user_constraints WHERE table_name = 'TRANSACTIONS';
+
+-- Invalid objects (recompile after changes)
+SELECT object_name, object_type FROM user_objects WHERE status = 'INVALID';
+ALTER PROCEDURE my_proc COMPILE;
+
+-- Session & query monitoring
+SELECT sid, serial#, username, status, sql_id, event
+FROM   v$session WHERE username IS NOT NULL;
+
+-- Top SQL by elapsed time
+SELECT sql_id, ROUND(elapsed_time/1e6, 2) AS elapsed_sec, executions, sql_text
+FROM   v$sql ORDER BY elapsed_time DESC FETCH FIRST 10 ROWS ONLY;
+
+-- Table size
+SELECT segment_name, ROUND(bytes/1024/1024, 2) AS size_mb
+FROM   user_segments WHERE segment_name = 'TRANSACTIONS';
+```
+
+---
+
+## 19. Security
+
+```sql
+-- Object-level privileges
+GRANT SELECT, INSERT ON transactions TO app_user;
+REVOKE INSERT ON transactions FROM app_user;
+GRANT SELECT ON transactions TO reporting_role WITH GRANT OPTION;
+
+-- Row-Level Security (Virtual Private Database — VPD)
+-- Transparently appends WHERE clause to every query
+CREATE OR REPLACE FUNCTION sec_policy(schema_name IN VARCHAR2, table_name IN VARCHAR2)
+RETURN VARCHAR2 AS
+BEGIN
+    RETURN 'region = SYS_CONTEXT(''USERENV'', ''CLIENT_INFO'')';
+END;
+
+EXEC DBMS_RLS.ADD_POLICY('HR', 'EMPLOYEES', 'region_policy', 'HR', 'sec_policy');
+
+-- Unified Auditing (12c+)
+AUDIT SELECT ON transactions BY ACCESS WHENEVER SUCCESSFUL;
+
+-- Session context (useful for application-level security)
+SELECT SYS_CONTEXT('USERENV', 'SESSION_USER') AS db_user,
+       SYS_CONTEXT('USERENV', 'IP_ADDRESS')   AS ip,
+       SYS_CONTEXT('USERENV', 'OS_USER')      AS os_user
+FROM   DUAL;
+```
+
+---
+
+## 20. Payment System Patterns (MasterCard Specific)
+
+### Event Sourcing / Append-Only Ledger
+
+```sql
+-- Instead of mutating balance, append immutable events
+CREATE TABLE account_ledger (
+    event_id     NUMBER GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    account_id   NUMBER       NOT NULL,
+    event_type   VARCHAR2(20) CHECK (event_type IN ('CREDIT','DEBIT','FEE','REVERSAL')),
+    amount       NUMBER(15,2) NOT NULL,
+    reference    VARCHAR2(100) UNIQUE,   -- idempotency key
+    occurred_at  TIMESTAMP    DEFAULT SYSTIMESTAMP
 );
 
--- Current balance = SUM of all events
-SELECT account_id, SUM(amount) as current_balance
-FROM account_events
-WHERE event_type IN ('DEPOSIT', 'TRANSFER_IN')
+-- Current balance = aggregate of all events
+SELECT account_id,
+       SUM(CASE WHEN event_type IN ('CREDIT','REVERSAL') THEN amount ELSE -amount END) AS balance
+FROM   account_ledger
+WHERE  account_id = :aid
 GROUP BY account_id;
 ```
 
-### Temporal Data (audit history)
-```sql
--- Track when data changes
-CREATE TABLE transactions_audit (
-  id SERIAL PRIMARY KEY,
-  transaction_id INTEGER,
-  old_status transaction_status,
-  new_status transaction_status,
-  changed_at TIMESTAMPTZ,
-  changed_by TEXT
-);
+### Fraud Detection Query
 
--- Who changed what when?
-SELECT * FROM transactions_audit
-WHERE transaction_id = 123
-ORDER BY changed_at DESC;
+```sql
+-- High-risk transactions needing review in the last 24 hours
+SELECT t.txn_id, t.amount, u.name, m.merchant_name,
+       r.risk_score,
+       COUNT(f.rule_id) AS matched_fraud_rules,
+       LISTAGG(f.rule_name, ', ') WITHIN GROUP (ORDER BY f.rule_name) AS rules_matched
+FROM   transactions t
+JOIN   customers  u ON t.customer_id = u.customer_id
+JOIN   merchants  m ON t.merchant_id = m.merchant_id
+JOIN   risk_scores r ON t.txn_id = r.txn_id
+LEFT JOIN fraud_rules_matched f ON t.txn_id = f.txn_id
+WHERE  t.txn_date >= SYSDATE - 1
+  AND  r.risk_score > 0.75
+  AND  t.status = 'PENDING'
+GROUP BY t.txn_id, t.amount, u.name, m.merchant_name, r.risk_score
+HAVING COUNT(f.rule_id) > 2
+ORDER BY r.risk_score DESC, t.txn_date DESC
+FETCH FIRST 100 ROWS ONLY;
 ```
 
-### Dispute Resolution (Common in payments)
+### Dispute / Chargeback Query
+
 ```sql
--- Query to find related transactions for a dispute
-SELECT 
-  t.id,
-  t.amount,
-  t.created_at,
-  u.name,
-  d.dispute_reason,
-  d.status as dispute_status
-FROM transactions t
-INNER JOIN users u ON t.user_id = u.id
-LEFT JOIN disputes d ON t.id = d.transaction_id
-WHERE u.id = $1
-  AND t.created_at BETWEEN $2 AND $3
-ORDER BY t.created_at DESC;
+SELECT t.txn_id, t.amount, t.txn_date,
+       c.name AS customer, m.merchant_name,
+       d.dispute_reason, d.status AS dispute_status,
+       d.filed_at, d.resolved_at
+FROM   transactions t
+JOIN   customers c ON t.customer_id = c.customer_id
+JOIN   merchants  m ON t.merchant_id = m.merchant_id
+LEFT JOIN disputes d ON t.txn_id = d.txn_id
+WHERE  c.customer_id = :cust_id
+  AND  t.txn_date BETWEEN :start_date AND :end_date
+ORDER BY t.txn_date DESC;
 ```
 
 ---
 
-## 7. Common Gotchas & Interview Tips
+## 21. Quick Interview Reference
 
-### NULL Handling
+### Must-Know Concepts
+
+| Topic | Key Point |
+|---|---|
+| **ROWNUM vs ROW_NUMBER()** | ROWNUM assigned before ORDER BY runs; ROW_NUMBER() is a window function evaluated after ORDER BY |
+| **ROWID** | Physical row address (fastest access) but not stable across exports/imports |
+| **NULL arithmetic** | Any operation with NULL returns NULL; use NVL/COALESCE |
+| **MVCC** | Readers never block writers; Oracle reconstructs old versions from undo tablespace using SCN |
+| **Redo vs Undo** | Redo = replay for durability (crash recovery); Undo = rollback + consistent reads |
+| **Full scan vs Index** | Optimizer picks index when < ~5-15% of rows qualify; depends on statistics |
+| **Bind variables** | Prevents hard parse on every execution; critical for shared pool at scale |
+| **Partition pruning** | Optimizer eliminates irrelevant partitions only when partition key is in WHERE clause |
+| **MERGE** | Atomic upsert — prevents lost update race condition; essential for idempotent processing |
+| **Bitmap vs B-tree** | Bitmap: low-cardinality DW (read-mostly); B-tree: high-cardinality OLTP |
+
+### Common Interview Questions
+
+**Q: What's the difference between DELETE, TRUNCATE, and DROP?**
+- `DELETE`: DML, logged, rollbackable, fires row triggers, supports WHERE clause
+- `TRUNCATE`: DDL, not rollbackable (implicit commit), resets high-water mark, no row triggers, much faster
+- `DROP`: removes the table structure entirely from the schema
+
+**Q: How do you find and delete duplicate rows?**
 ```sql
--- NULL != anything (even NULL)
-SELECT * FROM transactions WHERE amount = NULL;  -- Returns nothing!
+-- Find duplicates
+SELECT email, COUNT(*) FROM customers GROUP BY email HAVING COUNT(*) > 1;
 
--- Use IS NULL / IS NOT NULL
-SELECT * FROM transactions WHERE amount IS NOT NULL;
-
--- COUNT(*) includes NULLs, COUNT(column) doesn't
-SELECT COUNT(*) as total_rows, COUNT(resolved_at) as resolved_count
-FROM transactions;  -- Counts unresolved transactions
+-- Delete keeping lowest ROWID (fastest Oracle approach)
+DELETE FROM customers c
+WHERE ROWID > (SELECT MIN(c2.ROWID) FROM customers c2 WHERE c2.email = c.email);
 ```
 
-### Type Casting
+**Q: What is a covering index?**
+An index containing all columns referenced in a query — the optimizer satisfies the query from the index alone, avoiding a table access entirely.
 ```sql
--- Explicit casting
-SELECT CAST(amount AS INTEGER) FROM transactions;
-SELECT amount::INTEGER FROM transactions;  -- PostgreSQL syntax
-
--- String to number
-SELECT '123'::INTEGER + 1;  -- Returns 124
+-- Index covers everything needed; no TABLE ACCESS BY INDEX ROWID
+CREATE INDEX idx_covering ON transactions(account_id, txn_date, amount);
+SELECT txn_date, amount FROM transactions WHERE account_id = 123;
 ```
 
-### Date/Time Operations
+**Q: Explain read consistency in Oracle.**
+Oracle uses MVCC with SCN (System Change Number). When a query starts, it records the current SCN. If a block has been modified after that SCN, Oracle reconstructs the old version from the undo tablespace. Writers never block readers — a fundamental difference from lock-based databases.
+
+**Q: How do you handle the N+1 query problem in Oracle?**
+Use `JOIN` or `BULK COLLECT` instead of querying inside a loop. With ORMs, use eager-loading / fetch joins. In PL/SQL, use `FORALL` with `BULK COLLECT` to batch all DML in one context switch.
+
+**Q: UNION vs UNION ALL?**
+- `UNION`: eliminates duplicates (requires sort/hash) — slower
+- `UNION ALL`: keeps all rows including duplicates — always prefer when duplicates are acceptable
+
+**Q: Why does NOT IN fail with NULL values?**
 ```sql
--- Current time
-SELECT NOW();  -- Returns timestamp with timezone
-SELECT CURRENT_DATE;  -- Just date
+-- manager_id can be NULL. NOT IN uses <> for each value.
+-- NULL <> anything = NULL (not TRUE), so no rows qualify.
+WHERE id NOT IN (SELECT manager_id FROM employees)  -- dangerous!
 
--- Intervals
-SELECT NOW() - INTERVAL '7 days';  -- One week ago
-SELECT NOW() - INTERVAL '1 month';
-SELECT created_at + INTERVAL '30 days' as due_date FROM transactions;
-
--- Extract parts
-SELECT 
-  EXTRACT(YEAR FROM created_at) as year,
-  EXTRACT(MONTH FROM created_at) as month,
-  EXTRACT(DAY FROM created_at) as day
-FROM transactions;
+-- NOT EXISTS correctly handles NULLs
+WHERE NOT EXISTS (SELECT 1 FROM employees e2 WHERE e2.manager_id = e.employee_id)
 ```
 
-### String Operations
-```sql
--- Concatenation
-SELECT CONCAT(first_name, ' ', last_name) FROM users;
-SELECT first_name || ' ' || last_name FROM users;
-
--- Length, uppercase, lowercase
-SELECT LENGTH(email), UPPER(name), LOWER(email) FROM users;
-
--- Substring
-SELECT SUBSTRING(email FROM 1 FOR 5) FROM users;  -- First 5 chars
-```
-
----
-
-## 8. Performance Tips (What Senior Engineers Know)
-
-### N+1 Problem
-```sql
--- BAD (N+1):
-SELECT * FROM users;  -- 1 query
--- Then in code: for each user, query transactions
-// for user in users:
-//   SELECT * FROM transactions WHERE user_id = user.id;  // N queries
-
--- GOOD (single query with JOIN):
-SELECT u.*, COUNT(t.id) as tx_count
-FROM users u
-LEFT JOIN transactions t ON u.id = t.user_id
-GROUP BY u.id;
-```
-
-### Avoid SELECT *
-```sql
--- BAD
-SELECT * FROM transactions;  -- Pulls all columns, unnecessary data
-
--- GOOD
-SELECT id, user_id, amount, status FROM transactions;
-```
-
-### Use LIMIT with OFFSET carefully
-```sql
--- For pagination, LIMIT is efficient
-SELECT * FROM transactions ORDER BY created_at DESC LIMIT 10;
-
--- But OFFSET is slow on large tables
-SELECT * FROM transactions ORDER BY created_at DESC LIMIT 10 OFFSET 1000000;
--- ^ Has to read first 1M rows, then skip them
-
--- Better: use keyset pagination
-SELECT * FROM transactions 
-WHERE created_at < $last_row_created_at
-ORDER BY created_at DESC 
-LIMIT 10;
-```
-
-### Connection Pooling (Application Level)
-```
-PostgreSQL connections are expensive
-Don't create new connection per request
-Use PgBouncer or connection pool in your app
-At MasterCard scale: critical for performance
-```
-
----
-
-## 9. SQL Query Writing Exercise
-
-### Scenario: Fraud Detection Query
-```sql
--- Find high-risk transactions in the last 24 hours
--- that need immediate review
-
-SELECT 
-  t.id,
-  t.user_id,
-  u.name,
-  u.email,
-  t.amount,
-  t.merchant_id,
-  m.name as merchant_name,
-  t.created_at,
-  r.risk_score,
-  COUNT(DISTINCT f.id) as matching_fraud_rules
-FROM transactions t
-INNER JOIN users u ON t.user_id = u.id
-INNER JOIN merchants m ON t.merchant_id = m.id
-LEFT JOIN transaction_risk_scores r ON t.id = r.transaction_id
-LEFT JOIN fraud_rules_matched f ON t.id = f.transaction_id
-WHERE 
-  t.created_at > NOW() - INTERVAL '24 hours'
-  AND r.risk_score > 0.75
-  AND t.status = 'PENDING'
-GROUP BY 
-  t.id, u.id, u.name, u.email, m.id, m.name, r.risk_score
-HAVING COUNT(DISTINCT f.id) > 2
-ORDER BY r.risk_score DESC, t.created_at DESC
-LIMIT 100;
-```
-
-**What this demonstrates:**
-- Multiple JOINs (user, merchant, risk scores, fraud rules)
-- LEFT JOINs for optional data
-- WHERE filtering
-- GROUP BY with HAVING
-- Aggregation (COUNT)
-- ORDER BY with priority
-- LIMIT for pagination
-
----
-
-## 10. Interview Questions They Might Ask
-
-**"How would you optimize a slow query?"**
-- Run EXPLAIN ANALYZE to see what's slow
-- Add indexes on WHERE/JOIN columns
-- Check for N+1 problems
-- Reduce columns selected if not needed
-- Check for missing JOINs (subquery instead of join)
-
-**"Explain the difference between INNER JOIN and LEFT JOIN"**
-- INNER: only rows that match both tables
-- LEFT: all rows from left table, matching from right (NULLs if no match)
-
-**"How do you handle duplicate data?"**
-- Use DISTINCT keyword
-- Use GROUP BY to deduplicate
-- Use UNIQUE indexes to prevent them
-
-**"What's an idempotency key and why do we need it?"**
-- UUID that identifies a request
-- If same request retried, returns same result
-- Prevents duplicate transactions in payments
-
-**"How do you think about indexing?"**
-- Index WHERE columns, JOIN columns, ORDER BY columns
-- Don't over-index (slows writes)
-- Use EXPLAIN to verify index is used
-- Monitor index bloat in production
-
----
-
-## 11. Quick Reference Commands
-
-```sql
--- Schema inspection
-\d transactions;  -- Describe table
-\d+ transactions;  -- More detail
-\di;  -- List indexes
-
--- Performance
-EXPLAIN ANALYZE SELECT ...;
-VACUUM ANALYZE;  -- Cleanup and update statistics
-
--- Transactions
-BEGIN; COMMIT; ROLLBACK;
-
--- Locks (for debugging deadlocks)
-SELECT * FROM pg_locks;
-SELECT * FROM pg_stat_activity;
-```
-
----
-
-## Key Takeaways for Interview
-
-✅ Comfortable writing JOINs (inner, left, multiple)
-✅ Comfortable with GROUP BY / HAVING / aggregations
-✅ Know window functions (RANK, ROW_NUMBER, LAG/LEAD)
-✅ Understand CTEs (WITH clause) for readability
-✅ Know basic indexing strategy
-✅ Understand transactions and isolation levels
-✅ Think about performance (EXPLAIN, N+1, indexes)
-✅ Know PostgreSQL-specific features (JSON, UUID, UPSERT)
-✅ Can write payment/fraud detection queries
-
-**Practice:** Write queries to answer common questions:
-- Top 10 customers by spending
-- Monthly transaction trends
-- Customers with high fraud risk
-- Transaction reconciliation
-- Duplicate detection
+**Q: What causes a deadlock and how do you prevent it?**
+Deadlock occurs when two sessions each hold a lock the other needs. Prevention: always acquire locks in the same order across all transactions. Detection: Oracle automatically detects deadlocks and rolls back one statement (ORA-00060); handle this exception and retry.

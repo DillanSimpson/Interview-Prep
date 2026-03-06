@@ -23,3 +23,9 @@
 hs_err_pid*
 replay_pid*
 .vscode/extensions.json
+/.idea/compiler.xml
+/.idea/Interview-Prep.iml
+/.idea/jarRepositories.xml
+/.idea/kubernetes-settings.xml
+/.idea/misc.xml
+/.idea/vcs.xml

@@ -193,6 +193,48 @@ In interviews, a crisp closing line works:
 | **PriorityQueue**        | Insert/Delete: O(log n) | Min/max retrieval.          |
 | **CopyOnWriteArrayList** | Read: O(1), Write: O(n) | Safe concurrent reads.      |
 
+### 🧠 Algorithm Complexity Quick Reference
+
+| Algorithm / Operation | Best | Average | Worst | Space |
+|---|---|---|---|---|
+| Binary Search | O(1) | O(log n) | O(log n) | O(1) |
+| Linear Search | O(1) | O(n) | O(n) | O(1) |
+| QuickSort | O(n log n) | O(n log n) | O(n²) | O(log n) |
+| MergeSort | O(n log n) | O(n log n) | O(n log n) | O(n) |
+| HeapSort | O(n log n) | O(n log n) | O(n log n) | O(1) |
+| HashMap get/put | O(1) | O(1) | O(n) | O(n) |
+| TreeMap get/put | O(log n) | O(log n) | O(log n) | O(n) |
+| BFS / DFS | — | O(V+E) | O(V+E) | O(V) |
+
+### 🏦 Interview: Choosing the Right Structure (Payment Context)
+
+| Scenario | Best Choice | Reason |
+|---|---|---|
+| Dedup idempotency keys | `HashSet` | O(1) lookup |
+| LRU cache (rate limit) | `LinkedHashMap` (access-order) | O(1) access + insertion order |
+| Priority fraud queue | `PriorityQueue` | O(log n) min/max extraction |
+| Thread-safe counter | `AtomicLong` | Lock-free, CAS-based |
+| Concurrent config map | `ConcurrentHashMap` | Segment-level locking |
+| Message buffer | `ArrayBlockingQueue` | Bounded, thread-safe FIFO |
+| Sorted transaction list | `TreeMap<Date, Txn>` | Sorted by timestamp automatically |
+
+### 🏗️ LRU Cache (Classic Interview Pattern)
+
+```java
+// Using LinkedHashMap with access-order — O(1) get and put
+class LRUCache<K, V> extends LinkedHashMap<K, V> {
+    private final int capacity;
+    LRUCache(int capacity) {
+        super(capacity, 0.75f, true);   // true = access-order
+        this.capacity = capacity;
+    }
+    @Override protected boolean removeEldestEntry(Map.Entry<K,V> eldest) {
+        return size() > capacity;
+    }
+}
+// Or: Spring's @Cacheable with Caffeine maximumSize(n) + expireAfterAccess
+```
+
 ---
 
 ## 3) 🍃 Spring Boot Mastery
@@ -327,23 +369,75 @@ public User findById(Long id) { return repo.findById(id).orElseThrow(); }
 
 ### Performance & Resilience
 
-* **Resilience4j:** circuit breakers, retries, bulkheads.
-* **@Async + TaskExecutor:** async workloads.
+* **Resilience4j:** circuit breakers, retries, bulkheads — isolate and protect downstream calls.
+* **@Async + TaskExecutor:** async workloads — always use a bounded `ThreadPoolTaskExecutor`, never the default unbounded one.
 * **Actuator:** exposes `/health`, `/metrics`, `/info`, `/env` and more; endpoints can be enabled/disabled or customized via config.
-* **Profiles:** environment isolation via `@Profile`.  
+* **Profiles:** environment isolation via `@Profile`.
   Activate a profile by setting `spring.profiles.active=dev` (in `application.properties`, environment variable, or JVM argument).
+* **HikariCP** (default Spring Boot connection pool): tune `maximumPoolSize`, `connectionTimeout`, `idleTimeout`. Pool size ≈ cores × 2 for I/O-heavy services.
 
 ```java
-  @Bean
-  public TaskExecutor taskExecutor() {
-      return new ThreadPoolTaskExecutor();
-  }
+// Bounded async thread pool — always configure explicitly
+@Bean
+public TaskExecutor taskExecutor() {
+    ThreadPoolTaskExecutor exec = new ThreadPoolTaskExecutor();
+    exec.setCorePoolSize(10);
+    exec.setMaxPoolSize(50);
+    exec.setQueueCapacity(200);
+    exec.setThreadNamePrefix("async-");
+    exec.setRejectedExecutionHandler(new ThreadPoolExecutor.CallerRunsPolicy());
+    exec.initialize();
+    return exec;
+}
 
-  @Async
-  public void runAsyncTask() {
-      // Your async logic here
-  }
-  ```
+@Async
+public CompletableFuture<String> runAsyncTask() {
+    // returns future — callers can chain or join
+    return CompletableFuture.completedFuture("done");
+}
+```
+
+```yaml
+# HikariCP tuning in application.yml
+spring:
+  datasource:
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 3000     # ms — fail fast, don't queue forever
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      pool-name: HikariPool-Main
+```
+
+### @Transactional — Deep Dive
+
+```java
+// Propagation controls what happens when a transactional method calls another
+@Transactional(propagation = Propagation.REQUIRED)      // default — join or create
+@Transactional(propagation = Propagation.REQUIRES_NEW)  // always new TX; suspends outer
+@Transactional(propagation = Propagation.SUPPORTS)      // join if exists, none if not
+@Transactional(propagation = Propagation.NOT_SUPPORTED) // suspend outer, run non-TX
+@Transactional(propagation = Propagation.NEVER)         // throw if TX exists
+@Transactional(propagation = Propagation.MANDATORY)     // throw if no TX exists
+
+// Isolation levels
+@Transactional(isolation = Isolation.READ_COMMITTED)    // default — no dirty reads
+@Transactional(isolation = Isolation.REPEATABLE_READ)   // no phantom reads within TX
+@Transactional(isolation = Isolation.SERIALIZABLE)      // full isolation — slowest
+
+// Rollback rules — by default only RuntimeException triggers rollback
+@Transactional(rollbackFor = Exception.class)           // rollback on checked too
+@Transactional(noRollbackFor = NotFoundException.class) // don't rollback on this
+
+// readOnly hint — allows DB/JPA optimizations (no dirty checking, read replica routing)
+@Transactional(readOnly = true)
+```
+
+**Common @Transactional pitfalls:**
+- **Self-invocation bypass:** calling a `@Transactional` method from within the same class skips the proxy — extract to a separate Spring bean.
+- **Private methods:** `@Transactional` on private methods is silently ignored — Spring can't proxy them.
+- **Exception swallowing:** catching and not rethrowing prevents rollback.
 
 ### SOLID principles
 
@@ -619,12 +713,119 @@ class User {
 }
 ```
 
-* Lazy vs eager: 
-  * prefer **LAZY** to avoid large graphs.
-* Optimzation
+* Lazy vs eager:
+  * prefer **LAZY** to avoid loading large object graphs unnecessarily.
+  * Use `JOIN FETCH` in JPQL to eagerly load only when needed (avoids N+1).
+* Optimization:
   * JPQL/Criteria; native SQL for complex joins.
-  * `@BatchSize(size=20)`.
+  * `@BatchSize(size=20)` — batch N+1 sub-selects into one.
   * Cache with Spring Cache or 2nd-level cache (EHCache, Redis).
+
+### JPA Deep Dive — N+1, Queries, Locking, Auditing
+
+**N+1 Problem & Fix:**
+```java
+// BAD — 1 query for accounts + N queries for each account's transactions
+List<Account> accounts = accountRepo.findAll();
+accounts.forEach(a -> a.getTransactions().size()); // N lazy loads
+
+// GOOD — single JOIN FETCH
+@Query("SELECT a FROM Account a JOIN FETCH a.transactions WHERE a.status = :s")
+List<Account> findWithTransactions(@Param("s") String status);
+
+// GOOD — DTO projection (no entity needed, skips persistence context overhead)
+@Query("SELECT new com.mc.dto.AccountSummary(a.id, a.balance, COUNT(t)) " +
+       "FROM Account a LEFT JOIN a.transactions t GROUP BY a.id, a.balance")
+List<AccountSummary> findSummaries();
+```
+
+**JPQL & Native Queries:**
+```java
+public interface TransactionRepository extends JpaRepository<Transaction, Long> {
+
+    // Derived method query
+    List<Transaction> findByStatusAndAmountGreaterThan(String status, BigDecimal amount);
+
+    // JPQL — portable, entity-based
+    @Query("SELECT t FROM Transaction t WHERE t.account.id = :id AND t.createdAt >= :from")
+    List<Transaction> findByAccountSince(@Param("id") Long id, @Param("from") LocalDate from);
+
+    // Native SQL — for Oracle-specific features
+    @Query(value = "SELECT * FROM transactions WHERE ROWNUM <= 10 ORDER BY amount DESC",
+           nativeQuery = true)
+    List<Transaction> findTop10ByAmount();
+
+    // Modifying query
+    @Modifying
+    @Transactional
+    @Query("UPDATE Transaction t SET t.status = :status WHERE t.id IN :ids")
+    int bulkUpdateStatus(@Param("status") String status, @Param("ids") List<Long> ids);
+}
+```
+
+**JPA Specifications (dynamic filtering):**
+```java
+public class TransactionSpecs {
+    public static Specification<Transaction> hasStatus(String status) {
+        return (root, query, cb) ->
+            status == null ? cb.conjunction() : cb.equal(root.get("status"), status);
+    }
+    public static Specification<Transaction> amountBetween(BigDecimal min, BigDecimal max) {
+        return (root, query, cb) -> cb.between(root.get("amount"), min, max);
+    }
+}
+// Usage
+transactionRepo.findAll(hasStatus("PENDING").and(amountBetween(100, 5000)), pageable);
+```
+
+**Optimistic vs Pessimistic Locking:**
+```java
+// Optimistic locking — version column prevents lost updates; throws OptimisticLockException
+@Entity
+class Account {
+    @Version Long version;   // JPA manages this automatically
+    BigDecimal balance;
+}
+
+// Pessimistic locking — DB-level row lock; use for critical sections
+@Lock(LockModeType.PESSIMISTIC_WRITE)
+@Query("SELECT a FROM Account a WHERE a.id = :id")
+Account findAndLock(@Param("id") Long id);
+```
+
+**Auditing (@EntityListeners):**
+```java
+@Configuration
+@EnableJpaAuditing
+public class JpaConfig {}
+
+@Entity
+@EntityListeners(AuditingEntityListener.class)
+class Transaction {
+    @CreatedDate   Instant createdAt;
+    @LastModifiedDate Instant updatedAt;
+    @CreatedBy     String createdBy;      // requires AuditorAware bean
+    @LastModifiedBy String updatedBy;
+}
+
+@Bean
+public AuditorAware<String> auditorAware() {
+    return () -> Optional.ofNullable(SecurityContextHolder.getContext())
+        .map(ctx -> ctx.getAuthentication())
+        .map(auth -> auth.getName());
+}
+```
+
+**Pagination with Spring Data:**
+```java
+Page<Transaction> page = repo.findByStatus("PENDING",
+    PageRequest.of(0, 20, Sort.by(Sort.Direction.DESC, "createdAt")));
+
+page.getContent();       // items
+page.getTotalElements(); // total count
+page.getTotalPages();
+page.hasNext();
+```
 
 ## ⚙️ What ACID stands for
 
@@ -1014,18 +1215,66 @@ This shows the *actual* bind variables Oracle saw, which can drastically change 
 * Role-based access: `@PreAuthorize("hasRole('ADMIN')")`.
 
 ```java
+// Modern Spring Security 6 config
 @Bean
 SecurityFilterChain security(HttpSecurity http) throws Exception {
-  return http.csrf().disable()
-             .authorizeHttpRequests(a -> a.anyRequest().authenticated())
-             .oauth2ResourceServer(o -> o.jwt())
-             .build();
+  return http
+    .csrf(csrf -> csrf.disable())                    // stateless API — no CSRF needed
+    .sessionManagement(sm -> sm
+        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+    .authorizeHttpRequests(auth -> auth
+        .requestMatchers("/auth/**", "/actuator/health").permitAll()
+        .requestMatchers(HttpMethod.GET, "/v1/**").hasAnyRole("READ", "ADMIN")
+        .requestMatchers("/v1/admin/**").hasRole("ADMIN")
+        .anyRequest().authenticated())
+    .oauth2ResourceServer(oauth -> oauth.jwt(Customizer.withDefaults()))
+    .headers(h -> h
+        .frameOptions(fo -> fo.deny())
+        .httpStrictTransportSecurity(hsts -> hsts.maxAgeInSeconds(31536000)))
+    .build();
 }
+
+// Method-level security — enable with @EnableMethodSecurity
+@PreAuthorize("hasRole('ADMIN')")
+public void deleteAccount(Long id) { }
+
+@PreAuthorize("hasRole('USER') and #accountId == authentication.principal.accountId")
+public Account getAccount(Long accountId) { }  // owner-only check
+
+@PostAuthorize("returnObject.ownerId == authentication.principal.id")
+public Account findById(Long id) { }           // filter after method runs
+
+// CORS configuration
+@Bean
+CorsConfigurationSource corsConfigurationSource() {
+    CorsConfiguration config = new CorsConfiguration();
+    config.setAllowedOrigins(List.of("https://app.mastercard.com"));
+    config.setAllowedMethods(List.of("GET","POST","PUT","DELETE","OPTIONS"));
+    config.setAllowedHeaders(List.of("Authorization","Content-Type","Idempotency-Key"));
+    UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+    source.registerCorsConfiguration("/v1/**", config);
+    return source;
+}
+```
+
+**Spring Security Filter Chain Order (important for debugging):**
+```
+Request → ChannelProcessingFilter
+        → SecurityContextPersistenceFilter
+        → HeaderWriterFilter
+        → CorsFilter
+        → CsrfFilter (disabled for stateless)
+        → BasicAuthenticationFilter / JwtAuthFilter (custom)
+        → ExceptionTranslationFilter
+        → FilterSecurityInterceptor (authorization)
+        → Your Controller
 ```
 
 ### Secure Headers
 
-* `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy`, CORS per env.
+* `X-Frame-Options: DENY`, `X-Content-Type-Options: nosniff`, `Content-Security-Policy`, `HSTS`, CORS per env.
+* Never log sensitive fields — use `@JsonIgnore`, PII redaction filter, or structured log masking.
+* Always validate inputs at the controller boundary (`@Valid`) and sanitize before DB writes.
 
 ### Secure SDLC & Threat Modeling
 
@@ -1674,3 +1923,564 @@ Given a valid token
 When a request is sent to /users
 Then response status is 200
 ```
+
+### Best Practice Testing Patterns
+
+**Test Pyramid:**
+```
+        /\
+       /  \     E2E / Contract Tests (few, slow, expensive)
+      /----\
+     /      \   Integration Tests — Spring Boot, Testcontainers
+    /--------\
+   /          \ Unit Tests — JUnit 5 + Mockito (many, fast, cheap)
+  /____________\
+```
+
+**Coverage targets:** Unit > 80%, Integration > 60% of critical paths, E2E on happy paths only.
+
+**Testcontainers — Real DB in tests (no H2 surprises):**
+```java
+@SpringBootTest
+@Testcontainers
+class TransactionRepositoryTest {
+
+    @Container
+    static OracleContainer oracle = new OracleContainer("gvenzl/oracle-xe:21-slim-faststart")
+            .withDatabaseName("testdb")
+            .withUsername("test")
+            .withPassword("test");
+
+    @DynamicPropertySource
+    static void props(DynamicPropertyRegistry registry) {
+        registry.add("spring.datasource.url",    oracle::getJdbcUrl);
+        registry.add("spring.datasource.username", oracle::getUsername);
+        registry.add("spring.datasource.password", oracle::getPassword);
+    }
+
+    @Autowired TransactionRepository repo;
+
+    @Test
+    void shouldPersistAndRetrieve() {
+        repo.save(new Transaction(/* ... */));
+        assertThat(repo.findByStatus("PENDING")).hasSize(1);
+    }
+}
+```
+
+**RestAssured — API-level integration tests:**
+```java
+@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
+class TransactionApiTest {
+
+    @LocalServerPort int port;
+
+    @Test
+    void shouldReturn201OnCreate() {
+        given()
+            .port(port)
+            .contentType(ContentType.JSON)
+            .header("Idempotency-Key", UUID.randomUUID().toString())
+            .header("Authorization", "Bearer " + getTestToken())
+            .body("""{"amount": 150.00, "currency": "USD", "accountId": 1}""")
+        .when()
+            .post("/v1/transactions")
+        .then()
+            .statusCode(201)
+            .header("Location", containsString("/v1/transactions/"))
+            .body("status", equalTo("PENDING"))
+            .body("amount", equalTo(150.0f));
+    }
+}
+```
+
+**ArgumentCaptor — verify what was saved:**
+```java
+@Test
+void shouldSaveAuditRecordOnStatusChange() {
+    service.updateStatus(1L, "SETTLED");
+    ArgumentCaptor<AuditEvent> captor = ArgumentCaptor.forClass(AuditEvent.class);
+    verify(auditRepo).save(captor.capture());
+    assertThat(captor.getValue().getNewStatus()).isEqualTo("SETTLED");
+}
+```
+
+**Key Testing Principles:**
+- **Arrange / Act / Assert** — clear 3-section structure in every test.
+- **One logical assertion per test** — easier to understand failures.
+- **Test behavior, not implementation** — don't test private methods directly.
+- **Use `@DisplayName`** — readable test names in reports.
+- **Avoid `Thread.sleep()`** — use `Awaitility` for async assertions.
+- **Flaky test = broken test** — fix or delete; never ignore.
+
+```java
+// Awaitility — clean async assertions
+await().atMost(5, SECONDS)
+       .until(() -> repo.findByStatus("SETTLED").size() == 1);
+```
+
+---
+
+## 11) 🐳 Docker
+
+### Core Concepts
+
+| Concept | Description |
+|---|---|
+| **Image** | Immutable snapshot — built from a Dockerfile |
+| **Container** | Running instance of an image |
+| **Layer** | Each Dockerfile instruction adds a cached layer |
+| **Registry** | Stores images (Docker Hub, ECR, Artifactory) |
+| **Volume** | Persistent storage outside container lifecycle |
+| **Network** | `bridge` (default), `host`, `overlay` (Swarm/K8s) |
+
+### Dockerfile (Spring Boot — Multi-Stage Build)
+
+```dockerfile
+# Stage 1: Build
+FROM eclipse-temurin:21-jdk-jammy AS builder
+WORKDIR /app
+COPY mvnw pom.xml ./
+COPY .mvn .mvn
+RUN ./mvnw dependency:go-offline -q          # cache deps layer separately
+COPY src ./src
+RUN ./mvnw package -DskipTests -q
+
+# Stage 2: Extract layered jar (Spring Boot 2.3+ layertools)
+FROM builder AS layers
+RUN java -Djarmode=layertools -jar target/*.jar extract
+
+# Stage 3: Runtime — minimal image
+FROM eclipse-temurin:21-jre-jammy
+WORKDIR /app
+RUN addgroup --system appgroup && adduser --system --ingroup appgroup appuser
+USER appuser                                  # never run as root
+
+COPY --from=layers /app/dependencies/ ./
+COPY --from=layers /app/spring-boot-loader/ ./
+COPY --from=layers /app/snapshot-dependencies/ ./
+COPY --from=layers /app/application/ ./
+
+EXPOSE 8080
+ENTRYPOINT ["java", \
+  "-XX:+UseContainerSupport", \              # respect K8s/Docker CPU/memory limits
+  "-XX:MaxRAMPercentage=75.0", \             # don't let JVM OOM the container
+  "-Djava.security.egd=file:/dev/./urandom", \
+  "org.springframework.boot.loader.JarLauncher"]
+```
+
+### Docker Compose (Local Development Stack)
+
+```yaml
+version: '3.9'
+services:
+  app:
+    build: .
+    ports: ["8080:8080"]
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      SPRING_DATASOURCE_URL: jdbc:oracle:thin:@oracle:1521/XEPDB1
+      SPRING_REDIS_HOST: redis
+    depends_on:
+      oracle: { condition: service_healthy }
+      redis:  { condition: service_started }
+
+  oracle:
+    image: gvenzl/oracle-xe:21-slim-faststart
+    environment: { ORACLE_PASSWORD: secret }
+    ports: ["1521:1521"]
+    healthcheck:
+      test: ["CMD", "healthcheck.sh"]
+      interval: 10s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    ports: ["6379:6379"]
+
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+    ports: ["9092:9092"]
+```
+
+### Essential Docker Commands
+
+```bash
+# Build & run
+docker build -t payment-service:latest .
+docker run -d -p 8080:8080 --name payment-svc \
+  -e SPRING_PROFILES_ACTIVE=prod payment-service:latest
+
+# Inspect
+docker logs -f payment-svc
+docker exec -it payment-svc sh
+docker stats payment-svc                     # live CPU/memory usage
+
+# Resource limits (mirror K8s requests/limits)
+docker run --memory="512m" --cpus="1.0" payment-service:latest
+
+# Compose
+docker compose up -d
+docker compose logs -f app
+docker compose down -v                       # remove volumes too
+```
+
+### Container Best Practices
+
+- **One process per container** — don't bundle DB + app.
+- **Immutable images** — no SSH, no package installs at runtime.
+- **Non-root user** — `USER appuser` in Dockerfile.
+- **Read-only filesystem** — `docker run --read-only` where possible.
+- **Health check** — `HEALTHCHECK CMD curl -f http://localhost:8080/actuator/health`.
+- **Layer cache** — copy `pom.xml` before `src/` so deps layer is only rebuilt on pom change.
+- **`.dockerignore`** — exclude `target/`, `.git/`, IDE files.
+
+---
+
+## 12) 🔄 CI/CD
+
+### Pipeline Overview
+
+```
+Code Push → Build → Test → Static Analysis → Docker Build → Deploy (Dev) → Deploy (Prod)
+```
+
+| Stage | Tools | Purpose |
+|---|---|---|
+| **Source Control** | Git / GitHub / Bitbucket | Branch strategy, PRs |
+| **Build** | Maven / Gradle | Compile, package JAR |
+| **Unit Tests** | JUnit 5, Mockito | Fast feedback, gates merge |
+| **Static Analysis** | SonarQube, Checkmarx | Code quality, CVEs |
+| **Integration Tests** | Spring Boot Test, Testcontainers | Real-stack tests |
+| **Docker Build** | Docker, Kaniko | Build & push image to registry |
+| **Deploy (Dev/QA)** | cf push / kubectl apply | Automated on every merge |
+| **Deploy (Prod)** | Blue-Green / Canary | Gated, manual approval or canary |
+
+### GitHub Actions Pipeline
+
+```yaml
+name: CI/CD Pipeline
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with: { java-version: '21', distribution: 'temurin', cache: 'maven' }
+
+      - name: Build & Unit Test
+        run: mvn verify -DskipITs
+
+      - name: SonarQube Scan
+        env: { SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }} }
+        run: mvn sonar:sonar -Dsonar.host.url=${{ secrets.SONAR_URL }}
+
+      - name: Integration Tests
+        run: mvn verify -P integration-tests
+
+      - name: Build Docker Image
+        run: docker build -t myregistry/payment-service:${{ github.sha }} .
+
+      - name: Push to Registry
+        run: |
+          echo ${{ secrets.REGISTRY_PASSWORD }} | docker login -u ${{ secrets.REGISTRY_USER }} --password-stdin
+          docker push myregistry/payment-service:${{ github.sha }}
+
+  deploy-dev:
+    needs: build-and-test
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy to PCF Dev
+        env: { CF_PASSWORD: ${{ secrets.CF_PASSWORD }} }
+        run: |
+          cf login -a $CF_API -u $CF_USER -p $CF_PASSWORD -o $CF_ORG -s dev
+          cf push payment-service --docker-image myregistry/payment-service:${{ github.sha }}
+```
+
+### Jenkins Pipeline (Declarative)
+
+```groovy
+pipeline {
+    agent { docker { image 'eclipse-temurin:21' } }
+    environment {
+        IMAGE_TAG = "${env.GIT_COMMIT[0..7]}"
+        SONAR_TOKEN = credentials('sonar-token')
+    }
+    stages {
+        stage('Build') {
+            steps { sh 'mvn package -DskipTests' }
+        }
+        stage('Unit Tests') {
+            steps { sh 'mvn test' }
+            post { always { junit 'target/surefire-reports/*.xml' } }
+        }
+        stage('SonarQube') {
+            steps { sh "mvn sonar:sonar -Dsonar.login=$SONAR_TOKEN" }
+        }
+        stage('Docker Build & Push') {
+            steps {
+                sh "docker build -t registry/payment-service:${IMAGE_TAG} ."
+                withCredentials([usernamePassword(credentialsId: 'docker-creds',
+                        usernameVariable: 'USER', passwordVariable: 'PASS')]) {
+                    sh "echo $PASS | docker login -u $USER --password-stdin"
+                    sh "docker push registry/payment-service:${IMAGE_TAG}"
+                }
+            }
+        }
+        stage('Deploy Dev') {
+            when { branch 'develop' }
+            steps { sh "cf push payment-service -f manifest-dev.yml" }
+        }
+        stage('Deploy Prod') {
+            when { branch 'main' }
+            input { message 'Deploy to production?' }
+            steps { sh "cf push payment-service -f manifest-prod.yml" }
+        }
+    }
+    post {
+        failure { slackSend(channel: '#alerts', message: "Build failed: ${env.BUILD_URL}") }
+    }
+}
+```
+
+### Quality Gates (SonarQube)
+
+```
+Coverage    ≥ 80%
+Duplication ≤ 3%
+Bugs        = 0 (blocker/critical)
+Security    = 0 (critical/blocker)
+Code Smells ≤ Threshold
+```
+
+### Branch Strategy
+
+```
+main        → production; only merge via PR from release/*
+develop     → integration; feature/* merges here
+feature/*   → individual features; short-lived
+release/*   → release stabilization; hotfixes back to main + develop
+hotfix/*    → urgent prod fixes; merge to main + develop
+```
+
+---
+
+## 13) ☁️ PCF / Tanzu & Cloud Scaling
+
+### PCF (Pivotal Cloud Foundry / Tanzu Application Service)
+
+PCF is a PaaS that abstracts away infrastructure. MasterCard and many banks use it for internal platform-as-a-service.
+
+```bash
+# Login
+cf login -a https://api.sys.example.com -u user@mc.com -o MyOrg -s Production
+
+# Push app (uses manifest.yml by default)
+cf push payment-service
+
+# Push with Docker image
+cf push payment-service --docker-image registry/payment-service:abc123
+
+# Check app status
+cf app payment-service
+cf logs payment-service --recent
+cf logs payment-service          # tail live
+
+# Scale manually
+cf scale payment-service -i 4   # 4 instances (horizontal)
+cf scale payment-service -m 1G  # memory per instance (vertical)
+cf scale payment-service -k 2G  # disk quota
+
+# Environment variables (externalize config — 12-factor)
+cf set-env payment-service SPRING_PROFILES_ACTIVE prod
+cf restage payment-service       # apply env changes
+
+# Marketplace services (bind DB, Redis, etc.)
+cf marketplace
+cf create-service p.redis cache-small my-redis
+cf bind-service payment-service my-redis
+cf restage payment-service
+```
+
+### manifest.yml (PCF App Descriptor)
+
+```yaml
+applications:
+  - name: payment-service
+    memory: 1G
+    disk_quota: 1G
+    instances: 2                            # starting instance count
+    buildpacks:
+      - java_buildpack_offline
+    path: target/payment-service.jar
+    env:
+      SPRING_PROFILES_ACTIVE: prod
+      JBP_CONFIG_OPEN_JDK_JRE: '{ jre: { version: 21.+ } }'
+      JAVA_OPTS: >
+        -XX:+UseContainerSupport
+        -XX:MaxRAMPercentage=75.0
+    health-check-type: http
+    health-check-http-endpoint: /actuator/health
+    routes:
+      - route: payment-service.apps.example.com
+    services:
+      - my-oracle-db
+      - my-redis
+      - my-kafka
+```
+
+### Blue-Green Deployment (Zero-Downtime)
+
+```bash
+# 1. Push new version as "payment-service-green" (no traffic yet)
+cf push payment-service-green -f manifest-green.yml
+
+# 2. Smoke test green
+cf app payment-service-green
+
+# 3. Switch traffic (map route from blue to green)
+cf map-route   payment-service-green apps.example.com --hostname payment-service
+cf unmap-route payment-service       apps.example.com --hostname payment-service
+
+# 4. Verify traffic is fully on green, then remove blue
+cf delete payment-service -f
+
+# 5. Rename green → canonical name for next cycle
+cf rename payment-service-green payment-service
+```
+
+### Auto-Scaling on PCF (App Autoscaler)
+
+```yaml
+# autoscaler manifest
+instance_limits:
+  min: 2
+  max: 20
+rules:
+  - rule_type: http_latency
+    rule_sub_type: avg_99th
+    threshold:
+      min: 0
+      max: 200                # scale up if p99 > 200ms
+  - rule_type: cpu
+    threshold:
+      min: 10
+      max: 70                 # scale up if CPU > 70%
+  - rule_type: memory
+    threshold:
+      min: 20
+      max: 80
+scheduled_limit_changes:
+  - recurrence: 5             # weekdays
+    executes_at: "2024-01-01T07:00:00Z"
+    instance_limits: { min: 5, max: 20 }   # ramp up for business hours
+  - recurrence: 5
+    executes_at: "2024-01-01T19:00:00Z"
+    instance_limits: { min: 2, max: 10 }   # scale back overnight
+```
+
+### 12-Factor App Principles (PCF/Cloud Native)
+
+| Factor | Principle | Spring Boot Implementation |
+|---|---|---|
+| **I. Codebase** | One repo, many deploys | Git monorepo or per-service |
+| **II. Dependencies** | Explicitly declare | `pom.xml` / `build.gradle` |
+| **III. Config** | Store in env, not code | `spring.cloud.config`, env vars |
+| **IV. Backing Services** | Treat as attached resources | VCAP_SERVICES in PCF |
+| **V. Build/Release/Run** | Strict separation | CI/CD pipeline stages |
+| **VI. Processes** | Stateless, share-nothing | No local session, use Redis |
+| **VII. Port Binding** | Export via port | `server.port=8080` |
+| **VIII. Concurrency** | Scale via process model | `cf scale -i N` |
+| **IX. Disposability** | Fast startup, graceful shutdown | `server.shutdown=graceful` |
+| **X. Dev/Prod Parity** | Keep environments alike | Testcontainers, same image |
+| **XI. Logs** | Treat as event streams | Logback to stdout → Splunk |
+| **XII. Admin Processes** | Run as one-off tasks | Spring Batch jobs, `cf run-task` |
+
+```yaml
+# Graceful shutdown — drain in-flight requests on scale-down or restart
+server:
+  shutdown: graceful
+spring:
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
+```
+
+### Kubernetes Scaling (for comparison)
+
+```yaml
+# Horizontal Pod Autoscaler (HPA) — scale on CPU or custom metrics
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: payment-service-hpa
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: payment-service
+  minReplicas: 2
+  maxReplicas: 20
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }
+    - type: Resource
+      resource:
+        name: memory
+        target: { type: Utilization, averageUtilization: 80 }
+    - type: Pods                          # custom metric (e.g., Kafka consumer lag)
+      pods:
+        metric: { name: kafka_consumer_lag }
+        target: { type: AverageValue, averageValue: "1000" }
+```
+
+```yaml
+# Deployment with resource limits + liveness/readiness probes
+apiVersion: apps/v1
+kind: Deployment
+spec:
+  replicas: 3
+  template:
+    spec:
+      containers:
+        - name: payment-service
+          image: registry/payment-service:abc123
+          resources:
+            requests: { cpu: "500m", memory: "512Mi" }
+            limits:   { cpu: "1000m", memory: "1Gi" }  # never exceed; OOMKilled if over
+          livenessProbe:
+            httpGet: { path: /actuator/health/liveness, port: 8080 }
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet: { path: /actuator/health/readiness, port: 8080 }
+            initialDelaySeconds: 15
+            periodSeconds: 5
+```
+
+### Scaling Strategies Summary
+
+| Strategy | Trigger | When to Use |
+|---|---|---|
+| **Horizontal (scale out)** | More instances | Stateless services — most Spring Boot apps |
+| **Vertical (scale up)** | More CPU/RAM | Stateful / memory-heavy (only if can't go horizontal) |
+| **Auto-scale on CPU** | CPU > threshold | General-purpose compute-bound services |
+| **Auto-scale on latency** | p99 > threshold | User-facing APIs with SLAs |
+| **Auto-scale on queue lag** | Kafka lag high | Message consumers falling behind |
+| **Scheduled scaling** | Time-based | Known traffic patterns (business hours) |
+| **Blue-Green** | Deploy | Zero-downtime rollout + instant rollback |
+| **Canary** | Deploy | Gradual rollout to % of users |
