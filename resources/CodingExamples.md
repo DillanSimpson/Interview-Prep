@@ -784,3 +784,49 @@ public class AreaOfRectangle {
     }
 }
 ```
+Past Questions
+---
+
+### 1a — Duplicate key in HashMap
+```java
+Map<String, Integer> map = new HashMap<>();
+map.put("A", 1);
+map.put("A", 2);
+System.out.println(map.size()); // 1
+```
+HashMap **does not allow duplicate keys** — the second `put` overwrites the first. Size is `1`, value is `2`.
+
+---
+
+### 1b — null key vs "null" string key
+```java
+Map<String, Integer> map = new HashMap<>();
+map.put(null, 1);
+map.put("null", 2);
+System.out.println(map.size()); // 2
+```
+`null` and `"null"` are **two different keys** — one is a null reference, one is the literal string. HashMap allows one null key. Size is `2`.
+
+---
+
+### 2 — finally always wins
+```java
+static int test() {
+    try {
+        return 1;
+    } finally {
+        return 2;
+    }
+}
+```
+Returns **`2`**. The `finally` block **always executes** and its return overrides the `try` return. The `1` is thrown away. This is considered bad practice — never return from a `finally` block.
+
+---
+
+### 3 — Starting a thread twice
+```java
+Thread t = new Thread();
+t.start(); // works fine
+t.start(); // throws IllegalThreadStateException
+```
+A thread can only be started **once**. The second `t.start()` throws `IllegalThreadStateException` because the thread is no longer in the `NEW` state after the first call. If you need to run it again, you must create a new `Thread` instance.
